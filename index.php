@@ -44,6 +44,7 @@
 	
 	if ( isset ( $controller ) && $controller instanceof EddyController ) {
 		$EddyFC [ 'skin' ] = $controller->getSkin();
+		$EddyFC [ 'skinfolder' ] = SITE_ROOT . '/skins/' . $EddyFC [ 'skin' ];
 		$EddyFC [ 'view' ] = $controller->getView();
 		
 		##################### Security #####################

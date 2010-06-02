@@ -6,61 +6,22 @@ class Users extends EddyModel {
 	public $usergroups_id;
 	public $username;
 
-	private $_isAdmin;
+	private $isAdmin;
 
-	public function __construct ( $id = null ) {
-		parent::__construct ( $id, __CLASS__ );
-	}
-
-	public function isAdmin() {
-		if ( !isset( $this->_isAdmin ) ) {
+	public function getIsAdmin() {
+		if ( !isset( $this->isAdmin ) ) {
 			// Find out whether we should treat this user as an Admin
 			if ( $this->usergroups_id < 2 ) {
-				$this->_isAdmin = true;
+				$this->isAdmin = true;
 			}
 			else {
-				$this->_isAdmin = false;
+				$this->isAdmin = false;
 			}
 		}
 
-		return $this->_isAdmin;
+		return $this->isAdmin;
 	}
-
-	public function changePassword ( &$response, $msg = 'Password successfully changed', $formWidth = '400px' ) {
-		$passwordForm = new HTMLControls_Form('change_password', array ( 'submit' => 'Change Password' ) );
-
-		$passwordForm->addChild ( new HTMLControls_Password ( 'oldpass', 'Old Password', true ) );
-		$passwordForm->addChild ( new HTMLControls_Password ( 'newpass', 'New Password', true ) );
-
-		$confirm = new HTMLControls_Password ( 'confirm', 'Confirm Password', true );
-		$confirm->_validationRules[] = new ValidationRule ( 'equalTo', '#newpass', 'Must match your new password above' );
-		$passwordForm->addChild ( $confirm );
-
-		$passwordForm->_width = $formWidth;
-
-		$user = unserialize ( $_SESSION ['User'] );
-
-		if ( $passwordForm->isPostback() ) {
-			if ( $user->password == $_POST [ 'oldpass' ] ) {
-				$user->password = $_POST [ 'newpass' ];
-
-				if ( $user->save() ) {
-					$response = userSuccess ( $msg );
-					$_SESSION [ 'User' ] = serialize ( $user );
-				}
-				else {
-					$response = userError ( 'Sorry, there\'s been a problem and we couldn\'t change your password right now.
-						Please try again later' );
-				}
-			}
-			else {
-				$response = userError ( 'Please enter your original password correctly!' );
-			}
-		}
-
-		return $passwordForm;
-	}
-
+	
 	public static function doLogin ( $username, $password ) {
 		$result = self::find ( array ( 'WHERE' => 'username = "' . $username . '" AND password = "' . $password . '" AND deleted = 0' ) );
 
@@ -82,21 +43,5 @@ class Users extends EddyModel {
 		else {
 			return false;
 		}
-	}
-
-	public static function generatePassword() {
-		$adj = array ( 'Happy', 'Sad', 'Wet', 'Cold', 'Hot', 'Dry', 'Cool', 'Wicked', 'Sweet', 'Sour' );
-		$subj = array ( 'Dog', 'Cat', 'Fish', 'Bear', 'Horse', 'Monkey', 'Mouse', 'Rat', 'Pig' );
-
-		$num1 = rand ( 1, 9 );
-		$num2 = rand ( 1, 9 );
-		$p1 = array_rand ( $adj, 1 );
-		$p2 = array_rand ( $subj, 1 );
-
-		return $adj [ $p1 ] . $subj [ $p2 ] . $num1 . $num2;
-	}
-	
-	public static function find ( $args = null ) {
-		return parent::find ( __CLASS__, $args );
 	}
 }
