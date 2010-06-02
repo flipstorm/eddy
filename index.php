@@ -1,9 +1,7 @@
 <?php
 	ob_start ( 'ob_gzhandler' );
 	
-	##################### Config #####################
-	define ( 'DEBUG', true );
-	define ( 'SITE_ROOT', '/~simonhamp/eddy2.0' );
+	include_once ( 'includes/config.php' );
 	
 	##################### Init #####################
 	if ( DEBUG ) { error_reporting ( E_ALL ^ E_NOTICE ); }

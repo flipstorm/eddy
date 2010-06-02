@@ -4,9 +4,10 @@
 		<meta http-equiv="content-type" content="text/html;charset=utf-8" />
 		<title><?php echo $title; ?></title>
 
+		<!-- Multiple HTTP requests slow page load. Combine these files -->
 		<link rel="stylesheet" type="text/css" href="<?php echo $EddyFC [ 'root' ]; ?>/css/reset.css" media="all" />
-		<link rel="stylesheet" type="text/css" href="<?php echo $EddyFC [ 'root' ]; ?>/skins/<?php echo $EddyFC [ 'skin' ]; ?>/text.css" media="all" />
-		<link rel="stylesheet" type="text/css" href="<?php echo $EddyFC [ 'root' ]; ?>/skins/<?php echo $EddyFC [ 'skin' ]; ?>/styles.css" media="all" />
+		<link rel="stylesheet" type="text/css" href="<?php echo $EddyFC [ 'skinfolder' ]; ?>/text.css" media="all" />
+		<link rel="stylesheet" type="text/css" href="<?php echo $EddyFC [ 'skinfolder' ]; ?>/styles.css" media="all" />
 
 		<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
 		<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.0/jquery-ui.min.js"></script>

@@ -1,12 +1,12 @@
 <?php
 	final class EddyDB extends mysqli {
-		private $db = '';
-		private $host = 'localhost';
-		private $pass = 'armageddon';
-		private $port;
-		private $socket;
-		private $table_prefix;
-		private $user = 'root';
+		private $db = MYSQL_DB;
+		private $host = MYSQL_HOST;
+		private $pass = MYSQL_PASSWORD;
+		private $port = MYSQL_PORT;
+		private $socket = MYSQL_SOCKET;
+		private $table_prefix = MYSQL_TBLPREF;
+		private $user = MYSQL_USER;
 		
 		private static $instance;
 	
@@ -14,7 +14,13 @@
 		public static $insertId;
 		public static $queries;
 	
-		public function __construct() {
+		public function __construct ( $host = null, $user = null, $pass = null, $db = null, $port = null, $socket = null ) {
+			foreach ( func_get_args() as $arg => $value ) {
+				if ( $value != null ) {
+					$this->$arg = $value;
+				}
+			}
+			
 			if ( !self::$instance instanceof DB ) {
 				parent::__construct ( $this->host, $this->user, $this->pass, $this->db, $this->port, $this->socket );
 	
