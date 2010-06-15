@@ -45,7 +45,14 @@
 	}
 	
 	function getCurrentURIPath ( $remQueryString = true ) {
-		$request = str_replace ( '^' . str_replace ( 'index.php', '', $_SERVER [ 'PHP_SELF' ] ), '', '^' . $_SERVER [ 'REQUEST_URI' ] );
+		if ( isset ( $_SERVER [ 'REDIRECT_URL' ] ) ) {
+			$requestURI = $_SERVER [ 'REDIRECT_URL' ];
+		}
+		else {
+			$requestURI = $_SERVER [ 'REQUEST_URI' ];
+		}
+	
+		$request = str_replace ( '^' . str_replace ( 'index.php', '', $_SERVER [ 'PHP_SELF' ] ), '', '^' . $requestURI );
 	
 		if ( $remQueryString && strpos ( $request, '?' ) !== false ) {
 			$request = str_replace ( '?' . $_SERVER [ 'QUERY_STRING' ], '', $request );

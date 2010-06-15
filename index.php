@@ -12,6 +12,7 @@
 
 	include_once ( 'includes/functions.php' );
 	FB::setEnabled ( DEBUG );
+	set_exception_handler ( 'exceptionHandler' );
 
 	$EddyFC [ 'root' ] = SITE_ROOT;
 	$EddyFC [ 'request' ] = getCurrentURIPath();
@@ -26,20 +27,56 @@
 	
 	##################### Controller #####################
 	// Calculate the class name convention
-	$controllerName = ucwords ( str_replace ( '/', '_', $EddyFC [ 'requestpath' ] ) ) . '_Controller';
+		$url = urldecode ( strtolower ( $EddyFC [ 'requestpath' ] ) );
 	
-	// Instantiate a controller
+	// Clean up the request
+	$controllerName = str_replace ( ' ', '_',
+			ucwords (
+				preg_replace ( array ( '/\s/', '@/@', '/[!@¬£\$%\^&\?\*\(\)\-_<>,\.\+=\{\}\[\]\:\;\"\'\\\|\/~\`]/', ), array ( '', ' ', '' ),
+					$url
+				)
+			)
+		);
+	
+	// Cycle through controllers until we find one
+	$controllerPath = explode ( '_', $controllerName );
+	
+	while ( !class_exists ( $controllerName . '_Controller' ) ) {
+		// Cycle up until we find a class that does exist
+		if ( count ( $controllerPath ) > 0 ) {
+			$EddyFC [ 'requestmethod' ] = strtolower ( array_pop ( $controllerPath ) );
+			
+			$upperLevelControllerName = str_replace ( ' ', '_', ucwords ( implode ( ' ', $controllerPath ) ) );
+		}
+		else {
+			$upperLevelControllerName = 'Default';
+			break;
+		}
+	
+		if ( isset ( $upperLevelControllerName ) ) {
+			$controllerName = $upperLevelControllerName;
+		}
+		
+		$EddyFC [ 'requestparams' ] = str_replace ( $EddyFC [ 'requestmethod' ] . '/', '', stristr ( $EddyFC [ 'request' ], $EddyFC [ 'requestmethod' ] . '/' ) );
+	}
+	
+	// Finish controller naming
+	$controllerName = $controllerName . '_Controller';
+	
+	// Instantiate the controller
 	if ( class_exists ( $controllerName ) ) {
-		$controller = new $controllerName();
+		eval ( '$controller = new ' . $controllerName . '();' );
 		
 		if ( method_exists ( $controller, $EddyFC [ 'requestmethod' ] ) ) {
-			call_user_func ( array ( $controller, $EddyFC [ 'requestmethod' ] ) );
+			if ( isset ( $EddyFC [ 'requestparams' ] ) ) {
+				$params = explode ( '/', $EddyFC [ 'requestparams' ] );
+			}
+
+			call_user_func_array ( array ( $controller, $EddyFC [ 'requestmethod' ] ), $params );
 		}
-	}
-	else {
-		// Load the default and call the 404 method?
-		$controller = new Default_Controller();
-		$controller->error404();
+		else {
+			// No method exists for this request, 404?
+		}
 	}
 	
 	if ( isset ( $controller ) && $controller instanceof EddyController ) {
@@ -83,7 +120,17 @@
 			}
 			
 			if ( $EddyFC [ 'view' ] == '' ) {
-				$EddyFC [ 'view' ] = $EddyFC [ 'request' ];
+				if ( $EddyFC [ 'requestpath' ] != 'default' ) {
+					$requestpath = $EddyFC [ 'requestpath' ] . '/';
+				}
+
+				// Use the conventional view
+				if ( isset ( $EddyFC [ 'requestparams' ] ) ) {
+					$EddyFC [ 'view' ] = str_replace ( '/' . $EddyFC [ 'requestparams' ] . '$', '', $requestpath . $EddyFC [ 'requestmethod' ] . '$' );
+				}
+				else {
+					$EddyFC [ 'view' ] = $requestpath . $EddyFC [ 'requestmethod' ];
+				}
 			}
 			
 			if ( file_exists ( 'skins/' . $EddyFC [ 'skin' ] . '/template.phtml' ) ) {
