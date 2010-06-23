@@ -7,6 +7,7 @@
 		}
 		
 		public function index() {
+			//Users::find();
 		}
 		
 		final public function login() {

@@ -27,7 +27,7 @@
 	
 	##################### Controller #####################
 	// Calculate the class name convention
-		$url = urldecode ( strtolower ( $EddyFC [ 'requestpath' ] ) );
+	$url = urldecode ( strtolower ( $EddyFC [ 'requestpath' ] ) );
 	
 	// Clean up the request
 	$controllerName = str_replace ( ' ', '_',
@@ -58,6 +58,7 @@
 		}
 		
 		$EddyFC [ 'requestparams' ] = str_replace ( $EddyFC [ 'requestmethod' ] . '/', '', stristr ( $EddyFC [ 'request' ], $EddyFC [ 'requestmethod' ] . '/' ) );
+		$EddyFC [ 'requestpath' ] = str_replace ( '/' . $EddyFC [ 'requestmethod' ] . '$', '', $EddyFC [ 'requestpath' ] . '$' );
 	}
 	
 	// Finish controller naming
@@ -68,6 +69,8 @@
 		eval ( '$controller = new ' . $controllerName . '();' );
 		
 		if ( method_exists ( $controller, $EddyFC [ 'requestmethod' ] ) ) {
+			$params = array();
+			
 			if ( isset ( $EddyFC [ 'requestparams' ] ) ) {
 				$params = explode ( '/', $EddyFC [ 'requestparams' ] );
 			}
