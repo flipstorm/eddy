@@ -32,7 +32,7 @@
 	// Clean up the request
 	$controllerName = str_replace ( ' ', '_',
 			ucwords (
-				preg_replace ( array ( '/\s/', '@/@', '/[!@¬£\$%\^&\?\*\(\)\-_<>,\.\+=\{\}\[\]\:\;\"\'\\\|\/~\`]/', ), array ( '', ' ', '' ),
+				preg_replace ( array ( '/\s/', '@/@', '/[^a-z0-9]+/i', ), array ( '', ' ', '' ),
 					$url
 				)
 			)
@@ -57,8 +57,12 @@
 			$controllerName = $upperLevelControllerName;
 		}
 		
-		$EddyFC [ 'requestparams' ] = str_replace ( $EddyFC [ 'requestmethod' ] . '/', '', stristr ( $EddyFC [ 'request' ], $EddyFC [ 'requestmethod' ] . '/' ) );
-		$EddyFC [ 'requestpath' ] = str_replace ( '/' . $EddyFC [ 'requestmethod' ] . '$', '', $EddyFC [ 'requestpath' ] . '$' );
+		// Work out what method to call and what params to pass to it
+		// Determine if the desired method exists, fallback on index and if that doesn't exist, give up
+		
+		$params = str_replace ( $EddyFC [ 'requestmethod' ] . '/', '', stristr ( $EddyFC [ 'request' ], $EddyFC [ 'requestmethod' ] . '/' ) );
+		$EddyFC [ 'requestparams' ] = str_replace ( '.' . $EddyFC [ 'requestformat' ], '', $params );
+		$EddyFC [ 'requestpath' ] = '/' . str_replace ( $EddyFC [ 'requestmethod' ] . '$', '', $EddyFC [ 'requestpath' ] . '$' );
 	}
 	
 	// Finish controller naming
@@ -68,20 +72,33 @@
 	if ( class_exists ( $controllerName ) ) {
 		eval ( '$controller = new ' . $controllerName . '();' );
 		
-		if ( method_exists ( $controller, $EddyFC [ 'requestmethod' ] ) ) {
-			$params = array();
-			
-			if ( isset ( $EddyFC [ 'requestparams' ] ) ) {
-				$params = explode ( '/', $EddyFC [ 'requestparams' ] );
-			}
+		// Build the parameters to pass to the method
+		$params = array();
 
-			call_user_func_array ( array ( $controller, $EddyFC [ 'requestmethod' ] ), $params );
+		if ( isset ( $EddyFC [ 'requestparams' ] ) ) {
+			$params = explode ( '/', $EddyFC [ 'requestparams' ] );
 		}
+		
+		if ( method_exists ( $controller, $EddyFC [ 'requestmethod' ] ) ) {
+			// Continue
+		}
+		/*elseif ( method_exists ( $controller, 'index' ) ) {
+			// Modify the method to call
+			$EddyFC [ 'requestmethod' ] = 'index';
+		}*/
 		else {
 			// No method exists for this request, 404?
+			FB::warn ( 'Warning: ' . $controllerName . '::' . $EddyFC [ 'requestmethod' ] . '(' . $EddyFC [ 'requestparams' ] . ') : Method doesn\'t exist' );
+			$dontCallMethod = true;
+		}
+		
+		if ( !$dontCallMethod ) {
+			call_user_func_array ( array ( $controller, $EddyFC [ 'requestmethod' ] ), $params );
 		}
 	}
-	
+
+
+
 	if ( isset ( $controller ) && $controller instanceof EddyController ) {
 		$EddyFC [ 'skin' ] = $controller->getSkin();
 		$EddyFC [ 'skinfolder' ] = SITE_ROOT . '/skins/' . $EddyFC [ 'skin' ];
@@ -92,7 +109,9 @@
 			redirect ( $EddyFC [ 'root' ] . '/login', true );
 		}
 	}
-	
+
+
+
 	##################### View #####################
 	switch ( $EddyFC [ 'requestformat' ] ) {
 		case 'json':
@@ -112,27 +131,20 @@
 				header ( 'HTTP/1.1 404 Not Found' );
 			}
 			
-			echo json_encode ( $json );
+			$jsonResponse = @json_encode ( $json );
+			
+			// JSONP
+			if ( isset ( $_GET [ 'callback' ] ) ) {
+				$jsonResponse = $_GET [ 'callback' ] . '(' . $jsonResponse . ');';
+			}
+			
+			echo $jsonResponse;
 			
 			break;
 		default:
 			if ( $controller instanceof EddyController ) {
 				foreach ( $controller->getData() as $var => $val ) {
 					$$var = $val;
-				}
-			}
-			
-			if ( $EddyFC [ 'view' ] == '' ) {
-				if ( $EddyFC [ 'requestpath' ] != 'default' ) {
-					$requestpath = $EddyFC [ 'requestpath' ] . '/';
-				}
-
-				// Use the conventional view
-				if ( isset ( $EddyFC [ 'requestparams' ] ) ) {
-					$EddyFC [ 'view' ] = str_replace ( '/' . $EddyFC [ 'requestparams' ] . '$', '', $requestpath . $EddyFC [ 'requestmethod' ] . '$' );
-				}
-				else {
-					$EddyFC [ 'view' ] = $requestpath . $EddyFC [ 'requestmethod' ];
 				}
 			}
 			
@@ -145,7 +157,7 @@
 				include_once ( 'views/' . $EddyFC [ 'view' ] . '.phtml' );
 			}
 			else {
-				// Load the default view
+				// Load the default view (404?)
 				include_once ( 'views/default.phtml' );
 			}
 	}
@@ -153,8 +165,9 @@
 	##################### Debug #####################
 	if ( DEBUG ) {
 		// This should be a table
-		FB::info ( count ( EddyDB::$queries ) . ' Queries', EddyDB::$queries );
-		FB::info ( '$EddyFC', $EddyFC );
+		//FB::table ( count ( EddyDB::$queries ) . ' Queries', array_merge ( array ( array ( 'Query', 'Query Time (s)' ) ), EddyDB::$queries ) );
+		FB::info ( $EddyFC, 'EDDY FC' );
+		FB::info ( $_SERVER );
 	}
 	
 	ob_end_flush();

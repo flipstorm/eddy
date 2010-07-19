@@ -2,7 +2,10 @@
 	abstract class EddyModel {
 		protected $id;
 		protected $isDataBound = false;
+		
 		private $table;
+		
+		public $_id;
 	
 		public function __construct ( $id = null ) {
 			$this->table = strtolower ( get_class ( $this ) );
@@ -37,9 +40,19 @@
 		public function getIsDataBound() {
 			return $this->isDataBound;
 		}
+		
+		public static function count ( $where = null ) {
+			$where = ( isset ( $where ) ) ? ' WHERE ' . $where : '';
+		
+			if ( $result = EddyDB::q ( 'SELECT COUNT(id) AS count FROM ' . strtolower ( get_called_class() ) . $where ) ) {
+				$row = $result->fetch_array();
+			}
+			
+			return $row [ 'count' ];
+		}
 	
 		final private function findById ( $id ) {
-			$result = self::query ( 'SELECT * FROM `' . $this->table . '` WHERE id = ' . $id );
+			$result = EddyDB::q ( 'SELECT * FROM `' . $this->table . '` WHERE id = ' . $id );
 	
 			if ( $result instanceof mysqli_result ) {
 				$row = $result->fetch_array ( MYSQLI_ASSOC );
@@ -48,6 +61,8 @@
 					foreach ( $row as $fieldname => $data ) {
 						$this->$fieldname = $data;
 					}
+					
+					$this->_id = $this->id;
 	
 					return true;
 				}
@@ -62,9 +77,9 @@
 			$query = 'SELECT * FROM ' . $table;
 			
 			$query .= ( isset ( $args [ 'WHERE' ] ) ) ? ' WHERE ' . $args [ 'WHERE' ] : '';
-			$query .= ( isset ( $args [ 'LIMIT' ] ) ) ? ' LIMIT ' . $args [ 'LIMIT' ] : ' LIMIT 20';
+			$query .= ( isset ( $args [ 'LIMIT' ] ) ) ? ' LIMIT ' . $args [ 'LIMIT' ] : '';
 			
-			$result = self::query ( $query );
+			$result = EddyDB::q ( $query );
 	
 			if ( $result->num_rows > 0 ) {
 				while ( $row = $result->fetch_object ( $table ) ) {
@@ -75,60 +90,57 @@
 			return $rows;
 		}
 	
-		public static function query ( $query ) {
-			$db = EddyDB::getInstance();
-	
-			return $db->query ( $query );
-		}
-	
 		public function save ( $asNew = false ) {
-			$db = EddyDB::getInstance();
-	
 			if ( !isset ( $this->id ) ) {
 				$asNew = true;
 			}
 	
 			foreach ( get_object_public_vars ( $this ) as $fieldname => $value ) {
-			if ( $fields == '' ) {
-				$fields = $fieldname;
-				
-				if ( is_null ( $value ) ) {
-					$values = 'NULL';
+				if ( $fields == '' ) {
+					$fields = $fieldname;
+					
+					if ( is_null ( $value ) ) {
+						$values = 'NULL';
+					}
+					else {
+						$values = '"' . EddyDB::getEscapeString ( $value ) . '"';
+					}
+					
+					$updateValues = $fields . ' = ' . $values;
 				}
 				else {
-					$values = '"' . $db->escape_string ( $value ) . '"';
+					$fields .= ', ' . $fieldname;
+					
+					if ( is_null ( $value ) ) {
+						$values .= ', NULL';
+					}
+					else {
+						$values .= ', "' . EddyDB::getEscapeString ( $value ) . '"';
+					}
+	
+					$updateValues .= ', ' . $fieldname . ' = ';
+					
+					if ( is_null ( $value ) ) {
+						$updateValues .= 'NULL';
+					}
+					else {
+						$updateValues .= '"' . EddyDB::getEscapeString ( $value ) . '"';
+					}
 				}
-				
-				$updateValues = $fields . ' = ' . $values;
 			}
-			else {
-				$fields .= ', ' . $fieldname;
-				
-				if ( is_null ( $value ) ) {
-					$values .= 'NULL';
-				}
-				else {
-					$values .= '"' . $db->escape_string ( $value ) . '"';
-				}
-
-				$updateValues .= ', ' . $fieldname . ' = ';
-				
-				if ( is_null ( $value ) ) {
-					$updateValues .= 'NULL';
-				}
-				else {
-					$updateValues .= '"' . $db->escape_string ( $value ) . '"';
-				}
-			}
-		}
 	
 			if ( $asNew ) {
-				$result = $db->query ( 'INSERT INTO `' . $this->table . '` ( ' . $fields . ' ) VALUES ( ' . $values . ' )' );
+				$result = EddyDB::q ( 'INSERT INTO `' . $this->table . '` ( ' . $fields . ' ) VALUES ( ' . $values . ' )' );
 			
 				$this->id = EddyDB::$insertId;
+				$this->_id = $this->id;
 			}
 			else {
-				$result = $db->query ( 'UPDATE `' . $this->table . '` SET ' . $updateValues . ' WHERE id = ' . $this->id );
+				$result = EddyDB::q ( 'UPDATE `' . $this->table . '` SET ' . $updateValues . ' WHERE id = ' . $this->id );
+				
+				// TODO: Refresh the object in memory with latest from DB?
+				// This is only worthwile where the update itself causes a change to certain data
+				// like an on_update CURRENT_TIMESTAMP for a TIMESTAMP field
 			}
 			
 			return $result;
@@ -136,11 +148,11 @@
 	
 		public function delete ( $realDelete = false ) {
 			if ( $realDelete ) {
-				$result = self::query ( 'DELETE FROM `' . $this->table . '` WHERE id = ' . $this->id );
+				$result = EddyDB::q ( 'DELETE FROM `' . $this->table . '` WHERE id = ' . $this->id );
 			}
 			else {
 				if ( in_array ( 'deleted', get_object_public_vars ( $this ) ) ) {
-					$result = self::query ( 'UPDATE `' . $this->table . '` SET deleted = 1 WHERE id = ' . $this->id );
+					$result = EddyDB::q ( 'UPDATE `' . $this->table . '` SET deleted = 1 WHERE id = ' . $this->id );
 				}
 				else {
 					FB::error ( 'Could not pseudo-delete `' . $this->table . '` WHERE id = ' . $this->id . ', `deleted` field doesn\'t exist! Try calling $obj->delete(true)' );
@@ -148,5 +160,9 @@
 			}
 	
 			return $result;
+		}
+		
+		public function refresh() {
+			$this->findById ( $this->id );
 		}
 	}

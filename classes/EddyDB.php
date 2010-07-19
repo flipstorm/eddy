@@ -40,6 +40,22 @@
 				return new self();
 			}
 		}
+		
+		public static function getEscapeString ( $str ) {
+			$db = self::getInstance();
+			
+			return $db->escape_string ( $str );
+		}
+		
+		public function lite_query ( $query ) {
+			return parent::query ( $query );
+		}
+		
+		public static function q ( $query ) {
+			$db = self::getInstance();
+			
+			return $db->query ( $query );
+		}
 	
 		public function query ( $query ) {
 			$startTime = microtime();

@@ -4,7 +4,7 @@
 			// This is a controller that isn't loaded
 			$class = strtolower ( str_ireplace ( '_Controller$', '', $class . '$' ) );
 			$classFile = str_replace ( '_', '/', $class );
-			
+
 			@include_once ( 'controllers/' . $classFile . '.php' );
 		}
 		else {
@@ -21,22 +21,6 @@
 			if ( DEBUG && !class_exists ( $class, false ) ) {
 				eval ( 'class ' . $class . ' extends EddyModel {}' );
 			}
-		}
-	}
-	
-	function explode_with_keys ( $separator, $string ) {
-		$array = explode ( $separator, $string );
-	
-		if ( count ( $array ) > 0 ) {
-			foreach ( $array as $value ) {
-				$row = explode ( '=', $value );
-				$output [ $row[0] ] = $row[1];
-			}
-	
-			return $output;
-		}
-		else {
-			return null;
 		}
 	}
 	
@@ -68,7 +52,32 @@
 	}
 	
 	function get_object_public_vars ( $obj ) {
-		return get_object_vars ( $obj );
+		$vars = get_object_vars ( $obj );
+		
+		// Remove vars that begin with _
+		foreach ( $vars as $key => $val ) {
+			if ( $key{0} !== '_' ) {
+				$cleanVars [ $key ] = $val;
+			}
+		}
+		
+		return $cleanVars;
+	}
+	
+	function explode_with_keys ( $separator, $string ) {
+		$array = explode ( $separator, $string );
+	
+		if ( count ( $array ) > 0 ) {
+			foreach ( $array as $value ) {
+				$row = explode ( '=', $value );
+				$output [ $row[0] ] = $row[1];
+			}
+	
+			return $output;
+		}
+		else {
+			return null;
+		}
 	}
 	
 	function implode_with_keys ( $glue, $array ) {
