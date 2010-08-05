@@ -24,6 +24,46 @@
 		}
 	}
 	
+	function amendQueryString ( $params, $clearCurrent = false ) {
+		if ( !$clearCurrent && $_SERVER [ 'QUERY_STRING' ] != '' ) {
+			$newQueryString = explode_with_keys ( '&', $_SERVER [ 'QUERY_STRING' ] );
+		}
+	
+		if ( is_array ( $params ) ) {
+			foreach ( $params as $key => $value ) {
+				$newQueryString [ $key ] = $value;
+			}
+		}
+	
+		if ( is_array ( $newQueryString ) ) {
+			return '?' . implode_with_keys ( '&', $newQueryString );
+		}
+		
+		return false;
+	}
+	
+	function buildSqlOrderBy ( $column, $direction = 'ASC' ) {
+		if ( !empty ( $column ) ) {
+			return EddyDB::getEscapeString ( $column . ' ' . strtoupper ( $direction ) );
+		}
+	}
+	
+	function explode_with_keys ( $separator, $string ) {
+		$array = explode ( $separator, $string );
+	
+		if ( count ( $array ) > 0 ) {
+			foreach ( $array as $value ) {
+				$row = explode ( '=', $value );
+				$output [ $row[0] ] = $row[1];
+			}
+	
+			return $output;
+		}
+		else {
+			return null;
+		}
+	}
+	
 	function exceptionHandler ( Exception $e ) {
 		echo 'Don\'t you know how to catch yet?';
 	}
@@ -51,6 +91,21 @@
 		return $request;
 	}
 	
+	function getOppositeOrderBy ( $column ) {
+		if ( $_GET [ 'ob' ] == $column ) {
+			switch ( strtoupper ( $_GET [ 'o' ] ) ) {
+				case 'ASC':
+						return 'desc';
+					break;
+				default:
+					return 'asc';
+			}
+		}
+		else {
+			return 'asc';
+		}
+	}
+	
 	function get_object_public_vars ( $obj ) {
 		$vars = get_object_vars ( $obj );
 		
@@ -62,22 +117,6 @@
 		}
 		
 		return $cleanVars;
-	}
-	
-	function explode_with_keys ( $separator, $string ) {
-		$array = explode ( $separator, $string );
-	
-		if ( count ( $array ) > 0 ) {
-			foreach ( $array as $value ) {
-				$row = explode ( '=', $value );
-				$output [ $row[0] ] = $row[1];
-			}
-	
-			return $output;
-		}
-		else {
-			return null;
-		}
 	}
 	
 	function implode_with_keys ( $glue, $array ) {
@@ -100,6 +139,26 @@
 		return false;
 	}
 	
+	function include_partial ( $path ) {
+		global $EddyFC;
+		
+		foreach ( $EddyFC [ 'viewdata' ] as $var => $val ) {
+			$$var = $val;
+		}
+		
+		@include_once ( 'views/' . $path . '.phtml' );
+	}
+	
+	function include_view() {
+		global $EddyFC;
+		
+		foreach ( $EddyFC [ 'viewdata' ] as $var => $val ) {
+			$$var = $val;
+		}
+
+		@include_once ( 'views/' . $EddyFC [ 'view' ] . '.phtml' );
+	}
+	
 	function now() {
 		return date ( "Y-m-d H:i:s" );
 	}
@@ -114,4 +173,15 @@
 		header ( 'Location: ' . $location );
 	
 		exit;
+	}
+	
+	function xof ( $item, $count ) {
+		$x = 1;
+		
+		while ( $x <= $count ) {
+			$items[] = $item;
+			++$x;
+		}
+		
+		return $items;
 	}

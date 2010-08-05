@@ -24,8 +24,14 @@
 			if ( isset ( $this->view ) ) {
 				return $this->view;
 			}
+			elseif ( $EddyFC [ 'requestparams' ] ) {
+				// Use the current path without the parameters
+				$viewpath = str_ireplace ( '/' . $EddyFC [ 'requestparams' ], '', $EddyFC [ 'request' ] );
+				
+				return $viewpath;
+			}
 			else {
-				// Use the method name
+				// Use the path and method name
 				if ( $EddyFC [ 'requestpath' ] != 'default' ) {
 					$requestpath = $EddyFC [ 'requestpath' ] . '/';
 				}

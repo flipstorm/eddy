@@ -1,13 +1,14 @@
 eddy
 A lightweight, pure PHP 5.3 Web Application Framework
 
-** Requirments & Prerequisites
+** Requirements & Prerequisites
 PHP 5.3
 Apache with mod_rewrite
 MySQL
 
 ** Setup
-Just create a copy of the source and rename it. Drop it in your web server root. Modify app settings in includes/config.php and don't forget to change the RewriteBase in /.htaccess
+Just create a copy of the source and rename it. Drop it in your web server root.
+Modify app settings in includes/config.php and don't forget to change the RewriteBase in /.htaccess
 
 ** License
 Copyright (c) 2010 FlipStorm, Simon Hamp (simon@flipstorm.co.uk)

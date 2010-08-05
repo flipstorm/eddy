@@ -32,7 +32,7 @@
 	// Clean up the request
 	$controllerName = str_replace ( ' ', '_',
 			ucwords (
-				preg_replace ( array ( '/\s/', '@/@', '/[^a-z0-9]+/i', ), array ( '', ' ', '' ),
+				preg_replace ( array ( '/\s/', '/[^a-z0-9\\/]+/i', '@/@' ), array ( '', '', ' ' ),
 					$url
 				)
 			)
@@ -50,49 +50,52 @@
 		}
 		else {
 			$upperLevelControllerName = 'Default';
-			break;
 		}
 	
 		if ( isset ( $upperLevelControllerName ) ) {
 			$controllerName = $upperLevelControllerName;
 		}
-		
-		// Work out what method to call and what params to pass to it
-		// Determine if the desired method exists, fallback on index and if that doesn't exist, give up
-		
-		$params = str_replace ( $EddyFC [ 'requestmethod' ] . '/', '', stristr ( $EddyFC [ 'request' ], $EddyFC [ 'requestmethod' ] . '/' ) );
-		$EddyFC [ 'requestparams' ] = str_replace ( '.' . $EddyFC [ 'requestformat' ], '', $params );
-		$EddyFC [ 'requestpath' ] = '/' . str_replace ( $EddyFC [ 'requestmethod' ] . '$', '', $EddyFC [ 'requestpath' ] . '$' );
 	}
 	
 	// Finish controller naming
 	$controllerName = $controllerName . '_Controller';
 	
+	// Work out what method to call and what params to pass to it
+	// Determine if the desired method exists, fallback on index and if that doesn't exist, give up
+	
+	if ( method_exists ( $controllerName, $EddyFC [ 'requestmethod' ] ) ) {
+		$params = str_replace ( $EddyFC [ 'requestmethod' ] . '/', '', stristr ( $EddyFC [ 'request' ], $EddyFC [ 'requestmethod' ] . '/' ) );
+		
+		if ( strpos (  $EddyFC [ 'requestpath' ], $EddyFC [ 'requestmethod' ] ) ) {
+			$EddyFC [ 'requestpath' ] = str_replace ( $EddyFC [ 'requestmethod' ] . '$', '', $EddyFC [ 'requestpath' ] . '$' );
+		}
+	}
+	elseif ( method_exists ( $controllerName, 'index' ) ) {
+		$EddyFC [ 'requestmethod' ] = 'index';
+		$params = $EddyFC [ 'request' ];
+	}
+	
+	if ( !empty ( $params ) ) {
+		$EddyFC [ 'requestparams' ] = str_replace ( '.' . $EddyFC [ 'requestformat' ], '', $params );
+	}
+	
 	// Instantiate the controller
 	if ( class_exists ( $controllerName ) ) {
-		eval ( '$controller = new ' . $controllerName . '();' );
+		$controller = new $controllerName;
 		
-		// Build the parameters to pass to the method
-		$params = array();
-
-		if ( isset ( $EddyFC [ 'requestparams' ] ) ) {
-			$params = explode ( '/', $EddyFC [ 'requestparams' ] );
-		}
-		
-		if ( method_exists ( $controller, $EddyFC [ 'requestmethod' ] ) ) {
-			// Continue
-		}
-		/*elseif ( method_exists ( $controller, 'index' ) ) {
-			// Modify the method to call
-			$EddyFC [ 'requestmethod' ] = 'index';
-		}*/
-		else {
+		if ( !method_exists ( $controller, $EddyFC [ 'requestmethod' ] ) ) {
 			// No method exists for this request, 404?
 			FB::warn ( 'Warning: ' . $controllerName . '::' . $EddyFC [ 'requestmethod' ] . '(' . $EddyFC [ 'requestparams' ] . ') : Method doesn\'t exist' );
-			$dontCallMethod = true;
 		}
-		
-		if ( !$dontCallMethod ) {
+		else {		
+			// Build the parameters to pass to the method
+			$params = array();
+	
+			if ( isset ( $EddyFC [ 'requestparams' ] ) ) {
+				$params = explode ( '/', $EddyFC [ 'requestparams' ] );
+			}
+			
+			// Call the method
 			call_user_func_array ( array ( $controller, $EddyFC [ 'requestmethod' ] ), $params );
 		}
 	}
@@ -143,7 +146,9 @@
 			break;
 		default:
 			if ( $controller instanceof EddyController ) {
-				foreach ( $controller->getData() as $var => $val ) {
+				$EddyFC [ 'viewdata' ] = $controller->getData();
+				
+				foreach ( $EddyFC [ 'viewdata' ] as $var => $val ) {
 					$$var = $val;
 				}
 			}
@@ -154,20 +159,22 @@
 			}
 			elseif ( file_exists ( 'views/' . $EddyFC [ 'view' ] . '.phtml' ) ) {
 				// Just load the view
-				include_once ( 'views/' . $EddyFC [ 'view' ] . '.phtml' );
+				include_view();
 			}
 			else {
 				// Load the default view (404?)
-				include_once ( 'views/default.phtml' );
+				include_view();
 			}
 	}
 	
 	##################### Debug #####################
 	if ( DEBUG ) {
 		// This should be a table
-		//FB::table ( count ( EddyDB::$queries ) . ' Queries', array_merge ( array ( array ( 'Query', 'Query Time (s)' ) ), EddyDB::$queries ) );
-		FB::info ( $EddyFC, 'EDDY FC' );
-		FB::info ( $_SERVER );
+		@FB::table ( count ( EddyDB::$queries ) . ' Queries', array_merge ( array ( array ( 'Query', 'Query Time (s)' ) ), EddyDB::$queries ) );
+		FB::info ( $EddyFC, '$EddyFC' );
+		FB::info ( $_SERVER, '$_SERVER' );
+		FB::info ( $_GET, '$_GET' );
+		FB::info ( $_POST, '$_POST' );
 	}
 	
 	ob_end_flush();

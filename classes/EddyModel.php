@@ -3,6 +3,8 @@
 		protected $id;
 		protected $isDataBound = false;
 		
+		protected static $cache = array();
+		
 		private $table;
 		
 		public $_id;
@@ -14,14 +16,27 @@
 				$this->isDataBound = true;
 			}
 			elseif ( is_numeric ( $id ) && !$this->isDataBound ) {
-				$this->isDataBound = $this->findById ( $id );
+				$cachedObj = self::$cache [ $this->table . $id ];
+				
+				if ( $cachedObj instanceof $this ) {
+					// Object cached: Map the cached object onto the new one
+					foreach ( get_object_vars ( $this ) as $key => $value ) {
+						$this->$key = $cachedObj->$key;
+					}
+				}
+				else {
+					// Object not cached: Create a new object and cache it
+					$this->isDataBound = $this->findById ( $id );
+					
+					self::$cache [ $this->table . $id ] = $this;
+				}
 			}
 		}
 		
 		public function __get ( $arg ) {
 			// Assume the method collects the data we want!
-			if ( method_exists ( $this, 'get' . ucfirst ( $arg ) ) ) {
-				return call_user_method ( 'get' . ucfirst ( $arg ), $this );
+			if ( method_exists ( $this, '_get' . ucfirst ( $arg ) ) ) {
+				return call_user_method ( '_get' . ucfirst ( $arg ), $this );
 			}
 		}
 	
@@ -33,11 +48,11 @@
 			}
 		}
 		
-		public function getId() {
+		public function _getId() {
 			return $this->id;
 		}
 		
-		public function getIsDataBound() {
+		public function _getIsDataBound() {
 			return $this->isDataBound;
 		}
 		
@@ -76,8 +91,9 @@
 			
 			$query = 'SELECT * FROM ' . $table;
 			
-			$query .= ( isset ( $args [ 'WHERE' ] ) ) ? ' WHERE ' . $args [ 'WHERE' ] : '';
-			$query .= ( isset ( $args [ 'LIMIT' ] ) ) ? ' LIMIT ' . $args [ 'LIMIT' ] : '';
+			$query .= ( !empty ( $args [ 'WHERE' ] ) ) ? ' WHERE ' . $args [ 'WHERE' ] : '';
+			$query .= ( !empty ( $args [ 'ORDERBY' ] ) ) ? ' ORDER BY ' . $args [ 'ORDERBY' ] : '';
+			$query .= ( !empty ( $args [ 'LIMIT' ] ) ) ? ' LIMIT ' . $args [ 'LIMIT' ] : '';
 			
 			$result = EddyDB::q ( $query );
 	

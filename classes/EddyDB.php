@@ -58,9 +58,9 @@
 		}
 	
 		public function query ( $query ) {
-			$startTime = microtime();
+			$startTime = microtime ( true );
 			$result = parent::query ( $query );
-			$endTime = microtime();
+			$endTime = microtime ( true );
 	
 			$execTime = $endTime - $startTime;
 			self::$totalQueryTime += $execTime;
