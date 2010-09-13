@@ -1,8 +1,4 @@
 <?php
-	define ( 'MEMCACHED_SERVER', 'localhost' );
-	define ( 'MEMCACHED_PORT', 11211 );
-	define ( 'MEMCACHED_KEY_TOKEN', 'tgp' );
-	
 	/**
 	 * Basic Memcache manager class
 	 *
@@ -16,7 +12,7 @@
 		 * @return Memcache
 		 */
 		private static function getMem() {
-			if ( self::$singleton === null ) {
+			if ( !self::$singleton instanceof Memcache ) {
 				$memcache = new Memcache();
 	
 				if ( !@$memcache->connect ( MEMCACHED_SERVER, MEMCACHED_PORT ) ) {
@@ -98,7 +94,7 @@
 			if ( $memcache ) {
 				$uniqueKey = self::generateSecureMemCacheKey ( $key );
 	
-				if ( $memcache->add ( $uniqueKey, $data, null, $expires ) ) {
+				if ( $memcache->add ( $uniqueKey, $data, false, $expires ) ) {
 					// Append new key to the index of used keys for this domain
 					self::addKeyToIndex ( $uniqueKey );
 	
@@ -109,19 +105,7 @@
 			return false;
 		}
 	
-		public static function removeMemCache ( $key ) {
-			$memcache = self::getMem();
-	
-			if ( $memcache ) {
-				if ( $memcache->delete ( self::generateSecureMemCacheKey ( $key ) ) ) {
-					return true;
-				}
-			}
-	
-			return false;
-		}
-	
-		public static function updateMemCache ( $key, $data, $expires ) {
+		public static function updateMemCache ( $key, $data, $expires = 604800 ) {
 			$memcache = self::getMem();
 	
 			if ( $memcache ) {

@@ -1,8 +1,7 @@
 <?php
-	class EddyController {
+	class EddyController extends EddyBase {
 		protected $data = array();
-		protected $jsonData = array();
-		protected $usergroupRank = 9999;
+		private $min_user_rank;
 		protected $view;
 		protected $skin = 'default';
 		
@@ -10,34 +9,44 @@
 			return $this->data;
 		}
 		
-		public function getJsonData() {
-			return $this->jsonData;
+		public function getMinUserRank() {
+			return $this->min_user_rank;
 		}
 		
-		public function getUsergroupRank() {
-			return $this->usergroupRank;
+		protected function _setMin_user_rank( $value ) {
+			$this->min_user_rank = $value;
+			goSecure( $this->min_user_rank );
 		}
 		
 		public function getView() {
 			global $EddyFC;
 			
-			if ( isset ( $this->view ) ) {
-				return $this->view;
+			if ( isset( $this->view ) ) {
+				$view = $this->view;
 			}
-			elseif ( $EddyFC [ 'requestparams' ] ) {
+			elseif ( $EddyFC[ 'requestparams' ] ) {
 				// Use the current path without the parameters
-				$viewpath = str_ireplace ( '/' . $EddyFC [ 'requestparams' ], '', $EddyFC [ 'request' ] );
+				$viewpath = str_ireplace( $EddyFC[ 'requestparams' ], '', $EddyFC[ 'request' ] );
 				
-				return $viewpath;
+				if ( empty( $viewpath ) ) {
+					$viewpath = $EddyFC[ 'requestmethod' ];
+				}
+				elseif ( strpos( $viewpath, $EddyFC[ 'requestmethod' ] ) === false ) {
+					$viewpath .= $EddyFC[ 'requestmethod' ];
+				}
+
+				$view = trim( $viewpath, '/' );
 			}
 			else {
 				// Use the path and method name
-				if ( $EddyFC [ 'requestpath' ] != 'default' ) {
-					$requestpath = $EddyFC [ 'requestpath' ] . '/';
+				if ( $EddyFC[ 'requestpath' ] != 'default' ) {
+					$requestpath = $EddyFC[ 'requestpath' ] . '/';
 				}
 				
-				return $requestpath . $EddyFC [ 'requestmethod' ];
+				$view = $requestpath . $EddyFC[ 'requestmethod' ];
 			}
+			
+			return $view;
 		}
 		
 		public function getSkin() {

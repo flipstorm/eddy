@@ -1,10 +1,10 @@
 <?php
-	$EddyFC [ 'environment' ] = 'dev';
+	include_once ( 'environment.php' );
 	
 	switch ( $EddyFC [ 'environment' ] ) {
 		case 'dev':
 			define ( 'DEBUG',			true					);
-			define ( 'SITE_ROOT',		'/'						);
+			define ( 'SITE_ROOT',		'/~simonhamp/eddy2.0'	);
 			define ( 'MYSQL_DB',		''						);
 			define ( 'MYSQL_HOST',		'localhost'				);
 			define ( 'MYSQL_USER',		''						);

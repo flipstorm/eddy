@@ -1,59 +1,76 @@
 <?php
 	function __autoload ( $class ) {
-		if ( strpos ( $class, '_Controller' ) !== false ) {
+		if ( strpos( $class, '_Controller' ) !== false ) {
 			// This is a controller that isn't loaded
-			$class = strtolower ( str_ireplace ( '_Controller$', '', $class . '$' ) );
-			$classFile = str_replace ( '_', '/', $class );
+			$class = strtolower( str_ireplace( '_Controller$', '', $class . '$' ) );
+			$classFile = str_replace( '_', '/', $class );
 
-			@include_once ( 'controllers/' . $classFile . '.php' );
+			if ( file_exists( 'controllers/' . $classFile . '.php' ) ) {
+				include_once( 'controllers/' . $classFile . '.php' );
+			}
 		}
 		else {
 			// This is a standard class
-			$classFile = str_replace ( '_', '/', $class );
+			$classFile = str_replace( '_', '/', $class );
 	
-			if ( file_exists ( 'models/' . $classFile . '.php' ) ) {
-				require_once ( 'models/' . $classFile . '.php' );
+			if ( file_exists( 'models/' . $classFile . '.php' ) ) {
+				require_once( 'models/' . $classFile . '.php' );
 			}
-			elseif ( file_exists ( 'classes/' . $classFile . '.php' ) ) {
-				require_once ( 'classes/' . $classFile . '.php' );
+			elseif ( file_exists( 'classes/' . $classFile . '.php' ) ) {
+				require_once( 'classes/' . $classFile . '.php' );
 			}
 			
-			if ( DEBUG && !class_exists ( $class, false ) ) {
-				eval ( 'class ' . $class . ' extends EddyModel {}' );
+			if ( DEBUG && !class_exists( $class, false ) ) {
+				$prototype = 'class ' . $class . ' extends EddyModel {
+						public static function find( $args = null ) {
+							return parent::find( __CLASS__, $args );
+						}
+					}';
+		
+				eval( $prototype );
 			}
 		}
 	}
 	
-	function amendQueryString ( $params, $clearCurrent = false ) {
-		if ( !$clearCurrent && $_SERVER [ 'QUERY_STRING' ] != '' ) {
-			$newQueryString = explode_with_keys ( '&', $_SERVER [ 'QUERY_STRING' ] );
+	function amendQueryString( $params, $toggle = false, $clearCurrent = false ) {
+		if ( !$clearCurrent && $_SERVER[ 'QUERY_STRING' ] != '' ) {
+			$newQueryString = explode_with_keys( '&', $_SERVER[ 'QUERY_STRING' ] );
 		}
-	
-		if ( is_array ( $params ) ) {
+
+		if ( is_array( $params ) ) {
 			foreach ( $params as $key => $value ) {
-				$newQueryString [ $key ] = $value;
+				if ( $value == $newQueryString[ $key ] && $toggle ) {
+					unset ( $newQueryString[ $key ] );
+				}
+				else {
+					$newQueryString[ $key ] = $value;
+				}
 			}
 		}
 	
-		if ( is_array ( $newQueryString ) ) {
-			return '?' . implode_with_keys ( '&', $newQueryString );
+		if ( is_array( $newQueryString ) ) {
+			$qs = implode_with_keys( '&', $newQueryString );
+			
+			if ( $qs ) {
+				return '?' . $qs;
+			}
 		}
 		
 		return false;
 	}
 	
-	function buildSqlOrderBy ( $column, $direction = 'ASC' ) {
-		if ( !empty ( $column ) ) {
-			return EddyDB::getEscapeString ( $column . ' ' . strtoupper ( $direction ) );
+	function buildSqlOrderBy( $column, $direction = 'ASC' ) {
+		if ( !empty( $column ) ) {
+			return EddyDB::getEscapeString( $column . ' ' . strtoupper( $direction ) );
 		}
 	}
 	
-	function explode_with_keys ( $separator, $string ) {
-		$array = explode ( $separator, $string );
+	function explode_with_keys( $separator, $string ) {
+		$array = explode( $separator, $string );
 	
-		if ( count ( $array ) > 0 ) {
+		if ( is_array( $array ) ) {
 			foreach ( $array as $value ) {
-				$row = explode ( '=', $value );
+				$row = explode( '=', $value );
 				$output [ $row[0] ] = $row[1];
 			}
 	
@@ -64,36 +81,51 @@
 		}
 	}
 	
-	function exceptionHandler ( Exception $e ) {
-		echo 'Don\'t you know how to catch yet?';
+	function exceptionHandler( Exception $e ) {
+		echo '<h1>Don\'t you know how to Catch yet?</h1>';
+		
+		echo $e->getMessage() . '<h2>Stack Trace</h2>' ;
+		FB::info($e->getTrace());
+		foreach ( $e->getTrace() as $stack ) {
+			if ( $stack[ 'class' ] ) {
+				echo $stack[ 'class' ] . $stack[ 'type' ] . $stack[ 'function' ] . '(' . implode( ', ', $stack[ 'args' ] ) . ')<br />';
+				echo 'Line ' . $stack[ 'line' ] . ' in ' . $stack[ 'file' ] . '<br /><br />';
+			}
+			else {
+				echo 'Line ' . $stack[ 'line' ] . ' in ' . $stack[ 'file' ] . '<br /><br />';
+			}
+			
+		}
 	}
 	
-	function getCurrentURIPath ( $remQueryString = true ) {
-		if ( isset ( $_SERVER [ 'REDIRECT_URL' ] ) ) {
-			$requestURI = $_SERVER [ 'REDIRECT_URL' ];
+	function getCurrentURIPath( $remQueryString = true ) {
+		if ( isset( $_SERVER[ 'REDIRECT_URL' ] ) ) {
+			$requestURI = $_SERVER[ 'REDIRECT_URL' ];
 		}
 		else {
-			$requestURI = $_SERVER [ 'REQUEST_URI' ];
+			$requestURI = $_SERVER[ 'REQUEST_URI' ];
 		}
 	
-		$request = str_replace ( '^' . str_replace ( 'index.php', '', $_SERVER [ 'PHP_SELF' ] ), '', '^' . $requestURI );
+		$request[ 'actual' ] = str_replace( '^' . str_replace( 'index.php', '', $_SERVER[ 'PHP_SELF' ] ), '', '^' . $requestURI );
 	
-		if ( $remQueryString && strpos ( $request, '?' ) !== false ) {
-			$request = str_replace ( '?' . $_SERVER [ 'QUERY_STRING' ], '', $request );
+		if ( $remQueryString && strpos( $request[ 'actual' ], '?' ) !== false ) {
+			$request[ 'actual' ] = str_replace( '?' . $_SERVER[ 'QUERY_STRING' ], '', $request[ 'actual' ] );
 		}
 	
-		$request_rev = strrev ( $request );
+		$request_rev = strrev( $request[ 'actual' ] );
 		
-		if ( !$request || $request_rev{0} == '/' ) {
-			$request .= 'index';
+		$request[ 'fixed' ] = $request[ 'actual' ];
+		
+		if ( !$request[ 'actual' ] || $request_rev{0} == '/' ) {
+			$request[ 'fixed' ] .= 'index';
 		}
 	
 		return $request;
 	}
 	
-	function getOppositeOrderBy ( $column ) {
-		if ( $_GET [ 'ob' ] == $column ) {
-			switch ( strtoupper ( $_GET [ 'o' ] ) ) {
+	function getOppositeOrderBy( $column ) {
+		if ( $_GET[ 'ob' ] == $column ) {
+			switch ( strtoupper( $_GET[ 'o' ] ) ) {
 				case 'ASC':
 						return 'desc';
 					break;
@@ -106,23 +138,58 @@
 		}
 	}
 	
-	function get_object_public_vars ( $obj ) {
-		$vars = get_object_vars ( $obj );
+	function get_object_public_vars( $obj ) {
+		$vars = get_object_vars( $obj );
 		
 		// Remove vars that begin with _
 		foreach ( $vars as $key => $val ) {
 			if ( $key{0} !== '_' ) {
-				$cleanVars [ $key ] = $val;
+				$cleanVars[ $key ] = $val;
 			}
 		}
 		
 		return $cleanVars;
 	}
 	
-	function implode_with_keys ( $glue, $array ) {
-		if ( is_array ( $array ) ) {
-			foreach( $array as $key => $item ) {
-				if ( is_array ( $item ) ) {
+	function googleAnalyticsScript() {
+		if ( defined( 'GA_UAID' ) && !$_SESSION[ 'notrack' ] ) {
+			echo "<script type=\"text/javascript\">
+					var _gaq = _gaq || [];
+					_gaq.push(['_setAccount', '" . GA_UAID . "']);
+					_gaq.push(['_trackPageview']);
+					
+					(function() {
+					  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+					  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+					  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+					})();
+				</script>";
+		}
+	}
+	
+	function goSecure( $minUserRank, $redirect = 'login' ) {
+		if ( $_SESSION[ 'UserRank' ] < $minUserRank ) {
+			redirect( SITE_ROOT . '/' . $redirect, true );
+		}
+	}
+	
+	function imploder( $glue, $pieces ) {
+		foreach ( $pieces as $piece ) {
+			if ( is_array( $piece ) ) {
+				$retVal[] = imploder( $glue, $piece );
+			}
+			else {
+				$retVal[] = $piece;
+			}
+		}
+		
+		return implode( $glue, $retVal );
+	}
+
+	function implode_with_keys( $glue, $array ) {
+		if ( is_array( $array ) ) {
+			foreach ( $array as $key => $item ) {
+				if ( is_array( $item ) ) {
 					$item = $item[0];
 				}
 	
@@ -131,51 +198,97 @@
 				}
 			}
 	
-			if ( is_array ( $output ) ) {
-				return implode ( $glue, $output );
+			if ( is_array( $output ) ) {
+				return implode( $glue, $output );
 			}
 		}
 	
 		return false;
 	}
 	
-	function include_partial ( $path ) {
+	function include_partial( $path ) {
 		global $EddyFC;
 		
-		foreach ( $EddyFC [ 'viewdata' ] as $var => $val ) {
+		foreach ( $EddyFC[ 'viewdata' ] as $var => $val ) {
 			$$var = $val;
 		}
 		
-		@include_once ( 'views/' . $path . '.phtml' );
+		if ( file_exists( 'views/' . $path . '.part.phtml' ) ) {
+			include_once( 'views/' . $path . '.part.phtml' );
+		}
 	}
 	
 	function include_view() {
 		global $EddyFC;
 		
-		foreach ( $EddyFC [ 'viewdata' ] as $var => $val ) {
+		foreach ( $EddyFC[ 'viewdata' ] as $var => $val ) {
 			$$var = $val;
 		}
 
-		@include_once ( 'views/' . $EddyFC [ 'view' ] . '.phtml' );
+		if ( file_exists( 'views/' . $EddyFC[ 'view' ] . '.phtml' ) ) {
+			include_once( 'views/' . $EddyFC[ 'view' ] . '.phtml' );
+		}
+		else {
+			echo '<!-- views/' . $EddyFC[ 'view' ] . '.phtml doesn\'t exist -->';
+		}
 	}
+	
+	function method_is( $type = 'public', $method, $class ) {
+		$refl = new ReflectionMethod( $class, $method );
+		
+		switch ( strtolower( $type ) ) {
+			case 'static':
+				return $refl->isStatic();
+				break;
+			case 'public':
+				return $refl->isPublic();
+				break;
+			case 'private':
+				return $refl->isPrivate();
+				break;
+		}
+	} 
 	
 	function now() {
-		return date ( "Y-m-d H:i:s" );
+		return date( 'Y-m-d H:i:s' );
 	}
 	
-	function redirect ( $location = '', $recordDestination = false, $loginBypass = false ) {
-		ob_end_clean();
-	
-		if ( $recordDestination ) {
-			$_SESSION [ 'Destination' ] = getCurrentURIPath();
+	function orderByHref( $var, $default = null ) {
+		if ( isset( $default ) && in_array( strtoupper( $default ), array( 'ASC', 'DESC' ) ) ) {
+			$order = strtolower( $default );
 		}
-	
-		header ( 'Location: ' . $location );
-	
-		exit;
+		else {
+			$order = getOppositeOrderBy( $var );
+		}
+		
+		return amendQueryString( array( 'ob' => $var, 'o' => $order ) );
 	}
 	
-	function xof ( $item, $count ) {
+	function redirect( $location = null, $recordDestination = false ) {
+		if ( !$location ) {
+			$location = SITE_ROOT . '/';
+		}
+		
+		if ( $recordDestination ) {
+			$request = getCurrentURIPath();
+			$_SESSION[ 'Destination' ] = $request[ 'actual' ];
+		}
+		
+		// If this is an AJAX call, we'll have to handle the redirect on the front-end
+		if ( !$_SERVER[ 'HTTP_X_REQUESTED_WITH' ] ) {
+			ob_end_clean();
+			header( 'Location: ' . $location );
+			exit;
+		}
+		/*
+		else {
+			unset($this->data);
+			$this->data [ 'redirect' ] = $location;
+		}
+		*/
+	}
+	
+	function xof( $item, $count ) {
 		$x = 1;
 		
 		while ( $x <= $count ) {

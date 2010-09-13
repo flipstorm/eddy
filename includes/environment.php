@@ -1,0 +1,2 @@
+<?php
+	$EddyFC [ 'environment' ] = 'dev';

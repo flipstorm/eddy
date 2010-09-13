@@ -14,18 +14,18 @@
 		public static $insertId;
 		public static $queries;
 	
-		public function __construct ( $host = null, $user = null, $pass = null, $db = null, $port = null, $socket = null ) {
+		public function __construct( $host = null, $user = null, $pass = null, $db = null, $port = null, $socket = null ) {
 			foreach ( func_get_args() as $arg => $value ) {
 				if ( $value != null ) {
 					$this->$arg = $value;
 				}
 			}
 			
-			if ( !self::$instance instanceof DB ) {
-				parent::__construct ( $this->host, $this->user, $this->pass, $this->db, $this->port, $this->socket );
+			if ( !self::$instance instanceof EddyDB ) {
+				parent::__construct( $this->host, $this->user, $this->pass, $this->db, $this->port, $this->socket );
 	
 			    if ( mysqli_connect_errno() ) {
-			    	throw new Exception ( 'Connection to Database failed!' );
+			    	throw new Exception( 'Connection to Database failed!' );
 			    }
 	
 				self::$instance = $this;
@@ -33,7 +33,7 @@
 		}
 	
 		public static function getInstance() {
-			if ( self::$instance instanceof DB ) {
+			if ( self::$instance instanceof EddyDB ) {
 				return self::$instance;
 			}
 			else {
@@ -41,26 +41,26 @@
 			}
 		}
 		
-		public static function getEscapeString ( $str ) {
-			$db = self::getInstance();
-			
-			return $db->escape_string ( $str );
+		public static function esc_str( $str ) {
+			return self::getEscapeString( $str );
 		}
 		
-		public function lite_query ( $query ) {
-			return parent::query ( $query );
-		}
-		
-		public static function q ( $query ) {
+		public static function getEscapeString( $str ) {
 			$db = self::getInstance();
 			
-			return $db->query ( $query );
+			return $db->escape_string( $str );
+		}
+		
+		public static function q( $query ) {
+			$db = self::getInstance();
+			
+			return $db->query( $query );
 		}
 	
-		public function query ( $query ) {
-			$startTime = microtime ( true );
-			$result = parent::query ( $query );
-			$endTime = microtime ( true );
+		public function query( $query ) {
+			$startTime = microtime( true );
+			$result = parent::query( $query );
+			$endTime = microtime( true );
 	
 			$execTime = $endTime - $startTime;
 			self::$totalQueryTime += $execTime;
@@ -75,8 +75,8 @@
 				}
 			}
 			else {
-				FB::error ( $query, 'Error in Query: ' . $this->error );
-				FB::trace ( 'Stack Trace' );
+				FB::error( $query, 'Error in Query: ' . mysqli_error( $this ) );
+				FB::trace( 'Stack Trace' );
 			}
 	
 			return $result;
