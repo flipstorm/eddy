@@ -233,7 +233,7 @@
 		}
 	}
 	
-	function method_is( $type = 'public', $method, $class ) {
+	function method_is( $type, $method, $class ) {
 		$refl = new ReflectionMethod( $class, $method );
 		
 		switch ( strtolower( $type ) ) {

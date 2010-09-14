@@ -84,9 +84,9 @@
 			
 			$query = 'SELECT * FROM ' . $table;
 			
-			$query .= ( !empty ( $args[ 'WHERE' ] ) ) ? ' WHERE ' . $args[ 'WHERE' ] : '';
-			$query .= ( !empty ( $args[ 'ORDERBY' ] ) ) ? ' ORDER BY ' . $args[ 'ORDERBY' ] : '';
-			$query .= ( !empty ( $args[ 'LIMIT' ] ) ) ? ' LIMIT ' . $args[ 'LIMIT' ] : '';
+			$query .= ( !empty( $args[ 'WHERE' ] ) ) ? ' WHERE ' . $args[ 'WHERE' ] : '';
+			$query .= ( !empty( $args[ 'ORDERBY' ] ) ) ? ' ORDER BY ' . $args[ 'ORDERBY' ] : '';
+			$query .= ( !empty( $args[ 'LIMIT' ] ) ) ? ' LIMIT ' . $args[ 'LIMIT' ] : '';
 			
 			$result = EddyDB::q( $query );
 	
@@ -106,53 +106,34 @@
 				$asNew = true;
 			}
 	
+			if ( array_key_exists( 'created_date', get_object_public_vars( $this ) ) ) {
+				$this->created_date = now();
+			}
+
 			foreach ( get_object_public_vars( $this ) as $fieldname => $value ) {
-				if ( $fields == '' ) {
-					$fields = $fieldname;
-					
-					if ( is_null( $value ) ) {
-						$values = 'NULL';
-					}
-					else {
-						$values = '"' . $db->escape_string( $value ) . '"';
-					}
-					
-					$updateValues = $fields . ' = ' . $values;
-				}
-				else {
-					$fields .= ', ' . $fieldname;
-					
-					if ( is_null( $value ) ) {
-						$values .= ', NULL';
-					}
-					else {
-						$values .= ', "' . $db->escape_string( $value ) . '"';
-					}
-	
-					$updateValues .= ', ' . $fieldname . ' = ';
-					
-					if ( is_null( $value ) ) {
-						$updateValues .= 'NULL';
-					}
-					else {
-						$updateValues .= '"' . $db->escape_string( $value ) . '"';
-					}
+				if ( !empty( $value ) || $value == 0 ) {
+					$insertFields[] = $fieldname;
+					$insertValues[] = '"' . $db->escape_string( $value ) . '"';
+					$updateValues[] = $fields . ' = ' . $value;
 				}
 			}
-	
+
 			if ( $asNew ) {
-				$result = $db->query( 'INSERT INTO `' . $this->table . '` ( ' . $fields . ' ) VALUES ( ' . $values . ' )' );
-			
+				$result = $db->query( 'INSERT INTO `' . $this->table . '` ( ' . implode( ',', $insertFields ) . ' )
+					VALUES ( ' . implode( ',', $insertValues ) . ' )' );
+
 				$this->id = EddyDB::$insertId;
 				$this->_id = $this->id;
 			}
 			else {
-				$result = $db->query( 'UPDATE `' . $this->table . '` SET ' . $updateValues . ' WHERE id = ' . $this->id );
-				
-				// TODO: Refresh the object in memory with latest from DB?
-				// This is only worthwile where the update itself causes a change to certain data
-				// like an on_update CURRENT_TIMESTAMP for a TIMESTAMP field
+				$result = $db->query( 'UPDATE `' . $this->table . '`
+					SET ' . implode( ',', $updateValues ) . '
+					WHERE id = ' . $this->id );
 			}
+
+			// TODO: Refresh the object in memory with latest from DB?
+			// This is only worthwile where the update itself causes a change to certain data
+			// like an on_update CURRENT_TIMESTAMP for a TIMESTAMP field
 			
 			return $result;
 		}
