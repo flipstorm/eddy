@@ -1,7 +1,11 @@
 <?php
+	/**
+	 * Attempts to load the requested class from a variety of sources
+	 * @param string $class Class name
+	 */
 	function __autoload ( $class ) {
 		if ( strpos( $class, '_Controller' ) !== false ) {
-			// This is a controller that isn't loaded
+			// This is a controller
 			$class = strtolower( str_ireplace( '_Controller$', '', $class . '$' ) );
 			$classFile = str_replace( '_', '/', $class );
 
@@ -9,15 +13,33 @@
 				include_once( 'controllers/' . $classFile . '.php' );
 			}
 		}
+		/*
+		elseif ( strpos( $class, '_Model' ) !== false ) {
+			// This is a model
+			$class = strtolower( str_ireplace( '_Model$', '', $class . '$' ) );
+			$classFile = str_replace( '_', '/', $class );
+
+			if ( file_exists( 'models/' . $classFile . '.php' ) ) {
+				include_once( 'models/' . $classFile . '.php' );
+			}
+		}
+		else {
+			$classFile = str_replace( '_', '/', $class );
+
+			if ( file_exists( 'classes/' . $classFile . '.php' ) ) {
+				include_once( 'classes/' . $classFile . '.php' );
+			}
+		}
+		*/
 		else {
 			// This is a standard class
 			$classFile = str_replace( '_', '/', $class );
 	
 			if ( file_exists( 'models/' . $classFile . '.php' ) ) {
-				require_once( 'models/' . $classFile . '.php' );
+				include_once( 'models/' . $classFile . '.php' );
 			}
 			elseif ( file_exists( 'classes/' . $classFile . '.php' ) ) {
-				require_once( 'classes/' . $classFile . '.php' );
+				include_once( 'classes/' . $classFile . '.php' );
 			}
 			
 			if ( DEBUG && !class_exists( $class, false ) ) {
@@ -122,10 +144,13 @@
 	
 		return $request;
 	}
-	
-	function getOppositeOrderBy( $column ) {
-		if ( $_GET[ 'ob' ] == $column ) {
-			switch ( strtoupper( $_GET[ 'o' ] ) ) {
+
+	/*
+	 * Returns the opposite
+	 */
+	function getOppositeOrderBy( $column, $getOrderByParam = 'ob', $getOrderParam = 'o' ) {
+		if ( $_GET[ $getOrderByParam ] == $column ) {
+			switch ( strtoupper( $_GET[ $getOrderParam ] ) ) {
 				case 'ASC':
 						return 'desc';
 					break;
@@ -137,11 +162,26 @@
 			return 'asc';
 		}
 	}
+
+	function getPageNumber( $pageString = null, $strToRemove = 'page' ) {
+		if ( !empty( $pageString ) ) {
+			$page = str_ireplace( $strToRemove, '', $pageString );
+		}
+		else {
+			$page = 1;
+		}
+
+		if ( $page < 1 || !is_numeric( $page ) ) {
+			redirect( './' );
+		}
+
+		return $page;
+	}
 	
 	function get_object_public_vars( $obj ) {
 		$vars = get_object_vars( $obj );
 		
-		// Remove vars that begin with _
+		// Remove vars that begin with '_'
 		foreach ( $vars as $key => $val ) {
 			if ( $key{0} !== '_' ) {
 				$cleanVars[ $key ] = $val;
@@ -166,10 +206,13 @@
 				</script>";
 		}
 	}
-	
-	function goSecure( $minUserRank, $redirect = 'login' ) {
+
+	/*
+	 * Favour controller object method 'EddyController->goSecure()' - this should only be used outside controller context
+	 */
+	function goSecure( $minUserRank, $redirect = '/login' ) {
 		if ( $_SESSION[ 'UserRank' ] < $minUserRank ) {
-			redirect( SITE_ROOT . '/' . $redirect, true );
+			redirect( $redirect, true );
 		}
 	}
 	
@@ -229,10 +272,23 @@
 			include_once( 'views/' . $EddyFC[ 'view' ] . '.phtml' );
 		}
 		else {
-			echo '<!-- views/' . $EddyFC[ 'view' ] . '.phtml doesn\'t exist -->';
+			include_once( 'views/404.phtml' );
 		}
 	}
-	
+
+	/**
+	 * Determines if the given value looks like an ID
+	 * @param mixed $id
+	 * @return bool
+	 */
+	function is_id( $id = null ) {
+		if ( isset( $id ) && is_numeric( $id ) ) {
+			return true;
+		}
+
+		return false;
+	}
+
 	function method_is( $type, $method, $class ) {
 		$refl = new ReflectionMethod( $class, $method );
 		
@@ -253,7 +309,7 @@
 		return date( 'Y-m-d H:i:s' );
 	}
 	
-	function orderByHref( $var, $default = null ) {
+	function orderByHref( $var, $default = null, $getOrderByParam = 'ob', $getOrderParam = 'o' ) {
 		if ( isset( $default ) && in_array( strtoupper( $default ), array( 'ASC', 'DESC' ) ) ) {
 			$order = strtolower( $default );
 		}
@@ -261,12 +317,50 @@
 			$order = getOppositeOrderBy( $var );
 		}
 		
-		return amendQueryString( array( 'ob' => $var, 'o' => $order ) );
+		return amendQueryString( array( $getOrderByParam => $var, $getOrderParam => $order ) );
 	}
-	
-	function redirect( $location = null, $recordDestination = false ) {
-		if ( !$location ) {
-			$location = SITE_ROOT . '/';
+
+	/**
+	 * Simple function to determine whether a plural or singular word should be used with a number
+	 * @param int $count The number of things
+	 * @param string $singular The term to use for 1 thing
+	 * @param string $plural The term to use for multiple (or no) things
+	 * @return string The correct formation of the number and term
+	 */
+	function pluralize( $count, $singular, $plural ) {
+		if ( $count < 1 ) {
+			return 'No ' . $plural;
+		}
+		elseif ( $count > 1 ) {
+			return $count . ' ' . $plural;
+		}
+		else {
+			return $count . ' ' . $singular;
+		}
+	}
+
+	/**
+	 * Creates an unguessable session-based key that must be present and empty to qualify
+	 */
+	function realUser() {
+		if ( !isset( $_SESSION[ 'nobots' ] ) ) {
+			$_SESSION[ 'nobots' ] = md5( mt_rand() );
+		}
+
+		if ( array_key_exists( $_SESSION[ 'nobots' ] , $_POST ) && empty( $_POST[ $_SESSION[ 'nobots' ] ] ) ) {
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
+	 * Favour controller object method 'EddyController->redirect()'
+	 * This one doesn't handle AJAX redirects, only use outside controller context
+	 */
+	function redirect( $location = '/', $recordDestination = false ) {
+		if ( $location{0} == '/' ) {
+			$location = SITE_ROOT . $location;
 		}
 		
 		if ( $recordDestination ) {
@@ -280,20 +374,31 @@
 			header( 'Location: ' . $location );
 			exit;
 		}
-		/*
-		else {
-			unset($this->data);
-			$this->data [ 'redirect' ] = $location;
-		}
-		*/
 	}
-	
+
+	/**
+	 * Make a string URL friendly
+	 */
+	function urlize( $str ) {
+		$str = preg_replace( array( '/\'/', '/[^a-z0-9-]/i', '/-{2,}/' ), array( '', '-', '-' ), html_entity_decode( $str, ENT_QUOTES ) );
+
+		return trim( $str, '-' );
+	}
+
+	/**
+	 * Reproduce a PHP item any number of times
+	 * @param mixed $item The item to copy
+	 * @param int $count The number of times to copy it
+	 * @return array Array of copies of the original item
+	 */
 	function xof( $item, $count ) {
-		$x = 1;
-		
-		while ( $x <= $count ) {
-			$items[] = $item;
-			++$x;
+		while ( count( $items ) < $count ) {
+			if ( is_object( $item ) ) {
+				$items[] = clone $item;
+			}
+			else {
+				$items[] = $item;
+			}
 		}
 		
 		return $items;

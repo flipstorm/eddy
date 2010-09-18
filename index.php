@@ -18,7 +18,7 @@
 	$EddyFC[ 'request' ] = $request[ 'fixed' ];
 	$path = pathinfo( $EddyFC[ 'request' ] );
 	$EddyFC[ 'requestmethod' ] = $path[ 'filename' ];
-	$EddyFC[ 'requestformat' ] = $path[ 'extension' ];
+	$EddyFC[ 'requestformat' ] = strtolower( $path[ 'extension' ] );
 	$EddyFC[ 'requestpath' ] = trim( $path[ 'dirname' ], '.' );
 
 	if ( !$EddyFC[ 'requestpath' ] ) {
@@ -112,7 +112,8 @@
 		}
 		else {
 			// Method exists but isn't public so we can't call it... so why are we trying to access it?
-			// if (!DEBUG) { 404 } else { show a nice message }
+			// if (!DEBUG) { 404 } else { show a helpful developer message? }
+			header( 'HTTP/1.1 404 Not Found' );
 		}
 	}
 
@@ -123,29 +124,47 @@
 	}
 
 	##################### View #####################
+	// Capture the view variables passed from the controller
+	if ( $controller instanceof EddyController ) {
+		$EddyFC[ 'viewdata' ] = $controller->getData();
+	}
+
 	switch ( $EddyFC[ 'requestformat' ] ) {
+		case 'css':
+			header( 'Content-Type: text/css; charset=UTF-8' );
+			include_once( $EddyFC[ 'view' ] . '.css.php' );
+
+			break;
+		case 'js':
+			header( 'Content-Type: application/javascript; charset=UTF-8' );
+			include_once( $EddyFC[ 'view' ] . '.js.php' );
+
+			break;
+		case 'xml':
+			// TODO: Might need to add security to these API-able datatypes so that they can't just be used externally
+			break;
 		case 'json':
-			header( 'Content-Type: text/javascript; charset=UTF-8' );
+			// Switch content type to application/json
+			header( 'Content-Type: application/json; charset=UTF-8' );
 			
+			$data = $EddyFC[ 'viewdata' ];
+
 			if ( DEBUG ) {
-				$json[ 'debug' ][ 'Queries' ] = EddyDB::$queries;
-				$json[ 'debug' ][ '$EddyFC' ] = $EddyFC;
-				$json[ 'debug' ][ '$_SERVER' ] = $_SERVER;
+				$data[ 'debug' ][ 'Queries' ] = EddyDB::$queries;
+				$data[ 'debug' ][ '$EddyFC' ] = $EddyFC;
+				$data[ 'debug' ][ '$_SERVER' ] = $_SERVER;
 			}
-			
-			if ( $controller instanceof EddyController ) {
-				foreach ( $controller->getData() as $var => $val ) {
-					$json[ $var ] = $val;
-				}
-			}
-			else {
+
+			if ( !is_array( $EddyFC[ 'viewdata' ] ) ) {
 				header( 'HTTP/1.1 404 Not Found' );
 			}
 
-			$jsonResponse = @json_encode( $json );
+			$jsonResponse = @json_encode( $data );
 			
 			// JSONP
 			if ( isset( $_REQUEST[ 'callback' ] ) ) {
+				// Switch content type to application/javascript
+				header( 'Content-Type: application/javascript; charset=UTF-8' );
 				$jsonResponse = $_REQUEST[ 'callback' ] . '(' . $jsonResponse . ');';
 			}
 			
@@ -153,25 +172,17 @@
 			
 			break;
 		default:
-			if ( $controller instanceof EddyController ) {
-				$EddyFC[ 'viewdata' ] = $controller->getData();
-				
+			if ( file_exists( 'skins/' . $EddyFC[ 'skin' ] . '/template.phtml' ) ) {
+				// Load a skin (which will load the view)
 				foreach ( $EddyFC[ 'viewdata' ] as $var => $val ) {
 					$$var = $val;
 				}
-			}
-			
-			if ( file_exists( 'skins/' . $EddyFC[ 'skin' ] . '/template.phtml' ) ) {
-				// Load a skin (which will load the view)
+				
 				include_once( 'skins/' . $EddyFC[ 'skin' ] . '/template.phtml' );
 			}
-			elseif ( file_exists ( 'views/' . $EddyFC[ 'view' ] . '.phtml' ) ) {
-				// Just load the view
-				include_view();
-			}
 			else {
-				// Load the default view (404?)
-				include_view( 'default' );
+				// Just load a view
+				include_view();
 			}
 	}
 	

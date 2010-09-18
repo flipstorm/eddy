@@ -8,14 +8,19 @@
 		private $table;
 		
 		public $_id;
-	
+
+		/**
+		 * EddyModel constructor
+		 * @param int $id Pass an id to get a saved object
+		 */
 		public function __construct( $id = null ) {
 			$this->table = strtolower( get_class( $this ) );
 	
 			if ( $this->id ) {
+				// $this->id was set before we got here (i.e. by MySQLi_Result->fetch_object() call)
 				$this->isDataBound = true;
 			}
-			elseif ( is_numeric( $id ) && !$this->isDataBound ) {
+			elseif ( is_id( $id ) && !$this->isDataBound ) {
 				$cachedObj = self::$cache[ $this->table . $id ];
 
 				if ( $cachedObj instanceof $this ) {
@@ -48,42 +53,62 @@
 		public function _getIsDataBound() {
 			return $this->isDataBound;
 		}
-		
-		public static function count( $table, $where = null ) {
+
+		/**
+		 * Get a count of records - optionally matching a WHERE clause
+		 * @param string $table Use __CLASS__
+		 * @param <type> $where
+		 * @return int
+		 */
+		protected static function count( $table, $where = null ) {
 			$where = ( isset( $where ) ) ? ' WHERE ' . $where : '';
 		
-			if ( $result = EddyDB::q( 'SELECT COUNT(id) AS count FROM ' . strtolower( $table ) . $where ) ) {
+			if ( $result = EddyDB::q( 'SELECT COUNT(id) AS count FROM `' . strtolower( $table ) . '`' . $where ) ) {
 				$row = $result->fetch_array();
 			}
 			
 			return $row[ 'count' ];
 		}
-	
+
+		/**
+		 * Find a record in the database and map its data onto this instance's properties
+		 * @param int $id
+		 * @return bool Whether or not the object was successfully found and mapped
+		 * @final
+		 */
 		final private function findById( $id ) {
-			$result = EddyDB::q( 'SELECT * FROM `' . $this->table . '` WHERE id = ' . $id );
-	
-			if ( $result instanceof mysqli_result ) {
-				$row = $result->fetch_array( MYSQLI_ASSOC );
-	
-				if ( is_array( $row ) ) {
-					foreach ( $row as $fieldname => $data ) {
-						$this->$fieldname = $data;
+			if ( is_id( $id ) ) {
+				$result = EddyDB::q( 'SELECT * FROM `' . $this->table . '` WHERE id = ' . $id );
+
+				if ( $result instanceof mysqli_result ) {
+					$row = $result->fetch_array( MYSQLI_ASSOC );
+
+					if ( is_array( $row ) ) {
+						foreach ( $row as $fieldname => $data ) {
+							$this->$fieldname = $data;
+						}
+
+						$this->_id = $this->id;
+
+						return true;
 					}
-					
-					$this->_id = $this->id;
-	
-					return true;
 				}
 			}
 	
 			return false;
 		}
-	
-		public static function find( $table, $args = null ) {
+
+		/**
+		 * Perform a basic search query
+		 * @param string $table Use __CLASS__
+		 * @param array $args The clauses to use in the query (valid keys: WHERE, ORDERBY, LIMIT)
+		 * @return array An array of objects found
+		 */
+		protected static function find( $table, $args = null ) {
 			$table = strtolower( $table );
 			
 			$query = 'SELECT * FROM ' . $table;
-			
+
 			$query .= ( !empty( $args[ 'WHERE' ] ) ) ? ' WHERE ' . $args[ 'WHERE' ] : '';
 			$query .= ( !empty( $args[ 'ORDERBY' ] ) ) ? ' ORDER BY ' . $args[ 'ORDERBY' ] : '';
 			$query .= ( !empty( $args[ 'LIMIT' ] ) ) ? ' LIMIT ' . $args[ 'LIMIT' ] : '';
@@ -98,30 +123,36 @@
 	
 			return $rows;
 		}
-	
+
+		/**
+		 * Save the current state of the object back to the database
+		 * @param bool $asNew Set to true to save this data in a new record (force INSERT)
+		 * @return mysqli_result Query result object
+		 */
 		public function save( $asNew = false ) {
 			$db = EddyDB::getInstance();
 	
 			if ( !isset( $this->id ) ) {
 				$asNew = true;
 			}
-	
+
 			if ( array_key_exists( 'created_date', get_object_public_vars( $this ) ) ) {
 				$this->created_date = now();
 			}
 
 			foreach ( get_object_public_vars( $this ) as $fieldname => $value ) {
 				if ( !empty( $value ) || $value == 0 ) {
+					$value = '"' . $db->escape_string( $value ) . '"';
 					$insertFields[] = $fieldname;
-					$insertValues[] = '"' . $db->escape_string( $value ) . '"';
-					$updateValues[] = $fields . ' = ' . $value;
+					$insertValues[] = $value;
+					$updateValues[] = $fieldname . ' = ' . $value;
 				}
 			}
-
+	
 			if ( $asNew ) {
 				$result = $db->query( 'INSERT INTO `' . $this->table . '` ( ' . implode( ',', $insertFields ) . ' )
 					VALUES ( ' . implode( ',', $insertValues ) . ' )' );
-
+			
 				$this->id = EddyDB::$insertId;
 				$this->_id = $this->id;
 			}
@@ -137,7 +168,13 @@
 			
 			return $result;
 		}
-	
+
+		/**
+		 * Delete a record from the database. If $realDelete == false and the table has a column 'deleted'
+		 * then the record will only be 'binned' not erased
+		 * @param bool $realDelete Set to 'true' to erase this record
+		 * @return int Number of rows affected
+		 */
 		public function delete( $realDelete = false ) {
 			$db = EddyDB::getInstance();
 			
@@ -155,16 +192,34 @@
 	
 			return $db->affected_rows;
 		}
-		
-		public static function updateRange( $table, $range, $set ) {
+
+		/**
+		 * Update a group of records setting the same values for each
+		 * @param string $table The table to update (use __CLASS__)
+		 * @param string $range Comma separated list of record IDs
+		 * @param string $set The column name(s) and value(s) to set for the $range
+		 * @return int The number of updated rows
+		 */
+		protected static function updateRange( $table, $range, $set ) {
 			$db = EddyDB::getInstance();
 			
-			$result = $db->query( 'UPDATE ' . strtolower( $table ) . ' SET ' . $set . ' WHERE id IN (' . $range . ')' );
+			$result = $db->query( 'UPDATE ' . strtolower( $table ) . ' SET ' . $set . ' WHERE id IN (' . $db->escape_string( $range ) . ')' );
 
 			return $db->affected_rows;
 		}
-		
+
+		/**
+		 * Reload the current object from the database
+		 * @return void
+		 */
 		public function refresh() {
 			$this->findById( $this->id );
 		}
+
+		/*
+		 * Used to pass certain protected or private properties over to JSON that wouldn't otherwise make it
+		public function __sleep() {
+			// If we're JSON encoding this object, we want some of the methods to be available
+		}
+		*/
 	}
