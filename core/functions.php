@@ -4,17 +4,17 @@
 	 * @param string $class Class name
 	 */
 	function __autoload ( $class ) {
-		if ( strpos( $class, '_Controller' ) !== false ) {
+		if ( strpos( $class . '$', '_Controller$' ) !== false ) {
 			// This is a controller
 			$class = strtolower( str_ireplace( '_Controller$', '', $class . '$' ) );
 			$classFile = str_replace( '_', '/', $class );
 
-			if ( file_exists( 'controllers/' . $classFile . '.php' ) ) {
-				include_once( 'controllers/' . $classFile . '.php' );
+			if ( file_exists( '../app/controllers/' . $classFile . '.php' ) ) {
+				include_once 'app/controllers/' . $classFile . '.php';
 			}
 		}
 		/*
-		elseif ( strpos( $class, '_Model' ) !== false ) {
+		elseif ( strpos( $class . '$', '_Model$' ) !== false ) {
 			// This is a model
 			$class = strtolower( str_ireplace( '_Model$', '', $class . '$' ) );
 			$classFile = str_replace( '_', '/', $class );
@@ -33,13 +33,16 @@
 		*/
 		else {
 			// This is a standard class
-			$classFile = str_replace( '_', '/', $class );
+			$classFile = str_replace( '_', '/', $class ) . '.php';
 	
-			if ( file_exists( 'models/' . $classFile . '.php' ) ) {
-				include_once( 'models/' . $classFile . '.php' );
+			if ( file_exists( '../app/models/' . $classFile ) ) {
+				include_once 'app/models/' . $classFile;
 			}
-			elseif ( file_exists( 'classes/' . $classFile . '.php' ) ) {
-				include_once( 'classes/' . $classFile . '.php' );
+			elseif ( file_exists( '../app/lib/' . $classFile ) ) {
+				include_once 'app/lib/' . $classFile;
+			}
+			elseif ( file_exists( '../core/lib/' . $classFile ) ) {
+				include_once 'core/lib/' . $classFile;
 			}
 			
 			if ( DEBUG && !class_exists( $class, false ) ) {
@@ -85,6 +88,8 @@
 		if ( !empty( $column ) ) {
 			return EddyDB::getEscapeString( $column . ' ' . strtoupper( $direction ) );
 		}
+
+		return null;
 	}
 	
 	function explode_with_keys( $separator, $string ) {
@@ -163,6 +168,9 @@
 		}
 	}
 
+	/* DEPRECATED
+	 * Moved to Pagination::getPageNumber()
+	 */
 	function getPageNumber( $pageString = null, $strToRemove = 'page' ) {
 		if ( !empty( $pageString ) ) {
 			$page = str_ireplace( $strToRemove, '', $pageString );
@@ -256,8 +264,8 @@
 			$$var = $val;
 		}
 		
-		if ( file_exists( 'views/' . $path . '.part.phtml' ) ) {
-			include_once( 'views/' . $path . '.part.phtml' );
+		if ( file_exists( '../app/views/' . $path . '.part.phtml' ) ) {
+			include_once 'app/views/' . $path . '.part.phtml';
 		}
 	}
 	
@@ -268,11 +276,11 @@
 			$$var = $val;
 		}
 
-		if ( file_exists( 'views/' . $EddyFC[ 'view' ] . '.phtml' ) ) {
-			include_once( 'views/' . $EddyFC[ 'view' ] . '.phtml' );
+		if ( file_exists( '../app/views/' . $EddyFC[ 'view' ] . '.phtml' ) ) {
+			include_once 'app/views/' . $EddyFC[ 'view' ] . '.phtml';
 		}
 		else {
-			include_once( 'views/404.phtml' );
+			include_once 'app/views/404.phtml';
 		}
 	}
 
@@ -287,6 +295,59 @@
 		}
 
 		return false;
+	}
+
+	function handleRequest( $url = null ) {
+		$request = getCurrentURIPath( $url );
+		$return[ 'request' ] = $request;
+
+		// Take the URL, and do the usual Controller calcs
+		$path = pathinfo( $request[ 'fixed' ] );
+		$return[ 'requestmethod' ] = $path[ 'filename' ];
+		$return[ 'requestformat' ] = strtolower( $path[ 'extension' ] );
+		$return[ 'requestpath' ] = trim( $path[ 'dirname' ], '.' );
+
+		if ( !$return[ 'requestpath' ] ) {
+			$return[ 'requestpath' ] = 'default';
+		}
+
+		// Calculate the controller class naming convention
+		$url = urldecode( strtolower( $return[ 'requestpath' ] ) );
+
+		// Clean up the request
+		$controllerName = str_replace( ' ', '_',
+				ucwords (
+					preg_replace( array( '/\s/', '/[^a-z0-9\\/]+/i', '@/@' ), array( '', '', ' ' ),
+						$url
+					)
+				)
+			);
+
+		// Cycle through controllers until we find one
+		$controllerPath = explode( '_', $controllerName );
+
+		while ( !class_exists( $controllerName . '_Controller' ) ) {
+			// Cycle up until we find a class that does exist
+			if ( count( $controllerPath ) > 0 ) {
+				$return[ 'requestmethod' ] = strtolower( array_pop( $controllerPath ) );
+
+				$upperLevelControllerName = str_replace( ' ', '_', ucwords( implode( ' ', $controllerPath ) ) );
+			}
+			else {
+				$upperLevelControllerName = 'Default';
+			}
+
+			if ( isset( $upperLevelControllerName ) ) {
+				$controllerName = $upperLevelControllerName;
+			}
+		}
+
+		// Finish controller naming
+		$return[ 'controllerfilename' ] = strtolower( $controllerName );
+		$controllerName = $controllerName . '_Controller';
+		$return[ 'requestcontroller' ] = $controllerName;
+
+		return $return;
 	}
 
 	function method_is( $type, $method, $class ) {

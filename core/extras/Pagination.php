@@ -61,6 +61,21 @@
 			
 			return 'Showing ' . number_format( $this->_start + 1, 0, '.', ',' ) . ' to ' . number_format( $pageEnd, 0, '.', ',' ) . ' of ' . number_format( $this->itemCount, 0, '.', ',' );
 		}
+
+		public static function getPageNumber( $pageString = null, $strToRemove = 'page' ) {
+			if ( !empty( $pageString ) ) {
+				$page = str_ireplace( $strToRemove, '', $pageString );
+			}
+			else {
+				$page = 1;
+			}
+
+			if ( $page < 1 || !is_numeric( $page ) ) {
+				redirect( './' );
+			}
+
+			return $page;
+		}
 		
 		public function __toString() {
 			return $this->render();

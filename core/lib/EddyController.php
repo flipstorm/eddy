@@ -1,5 +1,5 @@
 <?php
-	class EddyController extends EddyBase {
+	abstract class EddyController extends EddyBase {
 		protected $data = array();
 		protected $view;
 		protected $skin = 'default';
