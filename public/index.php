@@ -1,1 +1,4 @@
-<?php require_once '../core/init.php'; ?>
+<?php
+	$appRoot = realpath( '../' );
+	require_once '../core/init.php';
+?>

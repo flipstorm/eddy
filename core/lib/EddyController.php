@@ -14,7 +14,7 @@
 			return $this->min_user_rank;
 		}
 		
-		protected function _setMin_user_rank( $value ) {
+		protected function _set_min_user_rank( $value ) {
 			$this->min_user_rank = $value;
 			$this->goSecure();
 		}

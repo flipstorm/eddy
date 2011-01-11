@@ -2,10 +2,12 @@
 	abstract class EddyModel extends EddyBase {
 		protected $id;
 		protected $isDataBound = false;
-		
+
+		// This is a bit unsafe and could potentially eat up memory
 		protected static $cache = array();
 		
 		private $table;
+		private $original;
 		
 		public $_id;
 
@@ -19,6 +21,7 @@
 			if ( $this->id ) {
 				// $this->id was set before we got here (i.e. by MySQLi_Result->fetch_object() call)
 				$this->isDataBound = true;
+				$this->original = get_object_public_vars( $this );
 			}
 			elseif ( is_id( $id ) && !$this->isDataBound ) {
 				$cachedObj = self::$cache[ $this->table . $id ];
@@ -37,33 +40,25 @@
 				}
 			}
 		}
-	
-		public function __call( $name, $args ) {
-			if ( strpos( $name, 'has_' ) !== false ) {
-				$table = str_replace( 'has_', '', $name );
-				// This should be a simple check to see if there are any records in $table
-				// where $this->table . '_id' = $this->id
-			}
-		}
 		
-		public function _getId() {
+		public function _get_id() {
 			return $this->id;
 		}
 		
-		public function _getIsDataBound() {
+		public function _get_isDataBound() {
 			return $this->isDataBound;
 		}
 
 		/**
 		 * Get a count of records - optionally matching a WHERE clause
 		 * @param string $table Use __CLASS__
-		 * @param <type> $where
+		 * @param string $where
 		 * @return int
 		 */
-		protected static function count( $table, $where = null ) {
+		protected static function count( $table, $where = null, $count_col = 'id' ) {
 			$where = ( isset( $where ) ) ? ' WHERE ' . $where : '';
 		
-			if ( $result = EddyDB::q( 'SELECT COUNT(id) AS count FROM `' . strtolower( $table ) . '`' . $where ) ) {
+			if ( $result = EddyDB::q( 'SELECT COUNT(' . $count_col . ') AS count FROM `' . strtolower( $table ) . '`' . $where ) ) {
 				$row = $result->fetch_array();
 			}
 			
@@ -88,6 +83,7 @@
 							$this->$fieldname = $data;
 						}
 
+						$this->original = $row;
 						$this->_id = $this->id;
 
 						return true;
@@ -107,7 +103,7 @@
 		protected static function find( $table, $args = null ) {
 			$table = strtolower( $table );
 			
-			$query = 'SELECT * FROM ' . $table;
+			$query = 'SELECT * FROM `' . $table . '`';
 
 			$query .= ( !empty( $args[ 'WHERE' ] ) ) ? ' WHERE ' . $args[ 'WHERE' ] : '';
 			$query .= ( !empty( $args[ 'ORDERBY' ] ) ) ? ' ORDER BY ' . $args[ 'ORDERBY' ] : '';
@@ -136,13 +132,21 @@
 				$asNew = true;
 			}
 
-			if ( array_key_exists( 'created_date', get_object_public_vars( $this ) ) ) {
+			$this_public_vars = get_object_public_vars( $this );
+
+			if ( array_key_exists( 'created_date', $this_public_vars ) ) {
 				$this->created_date = now();
 			}
 
-			foreach ( get_object_public_vars( $this ) as $fieldname => $value ) {
-				if ( !empty( $value ) || $value == 0 ) {
-					$value = '"' . $db->escape_string( $value ) . '"';
+			foreach ( $this_public_vars as $fieldname => $value ) {
+				if ( ( !empty( $value ) || $value === 0 || is_bool( $value ) ) && $this->original[ $fieldname ] !== $value ) {
+					if ( !is_bool( $value ) ) {
+						$value = '"' . $db->escape_string( $value ) . '"';
+					}
+					elseif ( $value === false ) {
+						$value = 0;
+					}
+
 					$insertFields[] = $fieldname;
 					$insertValues[] = $value;
 					$updateValues[] = $fieldname . ' = ' . $value;
@@ -156,10 +160,14 @@
 				$this->id = EddyDB::$insertId;
 				$this->_id = $this->id;
 			}
-			else {
+			elseif ( !empty( $updateValues ) ) {
 				$result = $db->query( 'UPDATE `' . $this->table . '`
-					SET ' . implode( ',', $updateValues ) . '
+					SET ' . implode( ', ', $updateValues ) . '
 					WHERE id = ' . $this->id );
+			}
+			else {
+				//throw new Exception( 'Data is unchanged, record not updated' );
+				$result = false;
 			}
 
 			// TODO: Refresh the object in memory with latest from DB?

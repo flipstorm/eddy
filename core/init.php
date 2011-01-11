@@ -1,7 +1,10 @@
 <?php
 	##################### Init #####################
+	$coreRoot = realpath( '../core/' );
+	
 	$inc_path = array(
-			realpath( '../' ),
+			$appRoot,
+			$coreRoot,
 			get_include_path()
 		);
 	set_include_path( implode( PATH_SEPARATOR, $inc_path ) );
@@ -18,67 +21,18 @@
 	include_once 'core/functions.php';
 
 	// Set up FirePHP if it's installed
-	if ( class_exists( 'FB', false ) ) {
-		FB::setEnabled( DEBUG );
-	}
+	FB::setEnabled( DEBUG );
 	
 	set_exception_handler( 'exceptionHandler' );
 	// TODO: Upgrade PHP errors to exceptions!
 
-	$EddyFC[ 'root' ] = SITE_ROOT;
-	$request = getCurrentURIPath();
-	$EddyFC[ 'request' ] = $request[ 'fixed' ];
-	$path = pathinfo( $EddyFC[ 'request' ] );
-	$EddyFC[ 'requestmethod' ] = $path[ 'filename' ];
-	$EddyFC[ 'requestformat' ] = strtolower( $path[ 'extension' ] );
-	$EddyFC[ 'requestpath' ] = trim( $path[ 'dirname' ], '.' );
-
-	if ( !$EddyFC[ 'requestpath' ] ) {
-		$EddyFC[ 'requestpath' ] = 'default';
-	}
-
-	##################### Controller #####################
-	// Calculate the class name convention
-	$url = urldecode( strtolower( $EddyFC[ 'requestpath' ] ) );
-
-	// Clean up the request
-	$controllerName = str_replace( ' ', '_',
-			ucwords (
-				preg_replace( array( '/\s/', '/[^a-z0-9\\/]+/i', '@/@' ), array( '', '', ' ' ),
-					$url
-				)
-			)
-		);
-
-	// Cycle through controllers until we find one
-	$controllerPath = explode( '_', $controllerName );
-
-	while ( !class_exists( $controllerName . '_Controller' ) ) {
-		// Cycle up until we find a class that does exist
-		if ( count( $controllerPath ) > 0 ) {
-			$EddyFC[ 'requestmethod' ] = strtolower( array_pop( $controllerPath ) );
-
-			$upperLevelControllerName = str_replace( ' ', '_', ucwords( implode( ' ', $controllerPath ) ) );
-		}
-		else {
-			$upperLevelControllerName = 'Default';
-		}
-
-		if ( isset( $upperLevelControllerName ) ) {
-			$controllerName = $upperLevelControllerName;
-		}
-	}
-
-	// Finish controller naming
-	$contName = strtolower( $controllerName );
-	$controllerName = $controllerName . '_Controller';
-	$EddyFC[ 'requestcontroller' ] = $controllerName;
-
+	$EddyFC = handleRequest();
+	
 	// Work out what method to call and what params to pass to it
 	// Determine if the desired method exists, fallback on index and if that doesn't exist, give up
-
-	if ( method_exists( $controllerName, $EddyFC[ 'requestmethod' ] ) ) {
-		$strstr = stristr( $EddyFC[ 'request' ], $EddyFC[ 'requestmethod' ] . '/' );
+	
+	if ( method_exists( $EddyFC[ 'requestcontroller' ], $EddyFC[ 'requestmethod' ] ) ) {
+		$strstr = stristr( $EddyFC[ 'request' ][ 'fixed' ], $EddyFC[ 'requestmethod' ] . '/' );
 
 		if ( $strstr ) {
 			$params = str_replace( '^' . $EddyFC[ 'requestmethod' ] . '/', '', '^' . $strstr );
@@ -88,9 +42,9 @@
 			$EddyFC[ 'requestpath' ] = str_replace( $EddyFC[ 'requestmethod' ] . '$', '', $EddyFC[ 'requestpath' ] . '$' );
 		}
 	}
-	elseif ( method_exists( $controllerName, 'index' ) ) {
+	elseif ( method_exists( $EddyFC[ 'requestcontroller' ], 'index' ) ) {
 		$EddyFC[ 'requestmethod' ] = 'index';
-		$params = trim( str_replace( str_replace( '_', '/', $contName ), '', $EddyFC[ 'request' ] ), '/' );
+		$params = trim( str_replace( str_replace( '_', '/', $EddyFC[ 'controllerfilename' ] ), '', $EddyFC[ 'request' ][ 'fixed' ] ), '/' );
 	}
 
 	// Remove the format from the end of the paramaters
@@ -99,14 +53,10 @@
 	}
 
 	// Instantiate the controller
-	if ( class_exists( $controllerName ) ) {
-		$controller = new $controllerName;
-
-		if ( !method_exists( $controller, $EddyFC[ 'requestmethod' ] ) ) {
-			// No method exists for this request, 404?
-			FB::warn( 'Warning: ' . $controllerName . '::' . $EddyFC[ 'requestmethod' ] . '(' . $EddyFC[ 'requestparams' ] . ') : Method doesn\'t exist' );
-		}
-		elseif ( method_is( 'public', $EddyFC[ 'requestmethod' ], $controller ) ) {
+	if ( class_exists( $EddyFC[ 'requestcontroller' ] ) ) {
+		$controller = new $EddyFC[ 'requestcontroller' ];
+		
+		if ( method_is( 'public', $EddyFC[ 'requestmethod' ], $controller ) ) {		
 			// Build the parameters to pass to the method
 			$params = array();
 
@@ -115,7 +65,7 @@
 			}
 
 			// If the final parameter is index, pop it off parameters
-			if ( $params[ count( $params ) - 1 ] == 'index' && $request[ 'actual' ] != $request[ 'fixed' ] ) {
+			if ( $params[ count( $params ) - 1 ] == 'index' && $EddyFC[ 'request' ][ 'actual' ] != $EddyFC[ 'request' ][ 'fixed' ] ) {
 				array_pop( $params );
 			}
 
@@ -123,8 +73,6 @@
 			call_user_func_array( array( $controller, $EddyFC[ 'requestmethod' ] ), $params );
 		}
 		else {
-			// Method exists but isn't public so we can't call it... so why are we trying to access it?
-			// if (!DEBUG) { 404 } else { show a helpful developer message? }
 			header( 'HTTP/1.1 404 Not Found' );
 		}
 	}
@@ -153,10 +101,15 @@
 
 			break;
 		case 'xml':
-			// TODO: Might need to add security to these API-able datatypes so that they can't just be used externally
 			header( 'Content-Type: text/xml; charset=UTF-8' );
 
 			$data = $EddyFC[ 'viewdata' ];
+
+			if ( !is_array( $EddyFC[ 'viewdata' ] ) ) {
+				header( 'HTTP/1.1 404 Not Found' );
+				exit;
+			}
+			
 			$xml = $data[ 'xml' ];
 
 			if ( $xml instanceof SimpleXMLElement ) {
@@ -173,17 +126,17 @@
 
 			$data = $EddyFC[ 'viewdata' ];
 
-			if ( DEBUG ) {
-				$data[ 'debug' ][ 'Queries' ] = EddyDB::$queries;
-				$data[ 'debug' ][ '$EddyFC' ] = $EddyFC;
-				$data[ 'debug' ][ '$_SERVER' ] = $_SERVER;
-			}
-
 			if ( !is_array( $EddyFC[ 'viewdata' ] ) ) {
 				header( 'HTTP/1.1 404 Not Found' );
+				exit;
 			}
 
-			$jsonResponse = @json_encode( $data );
+			if ( $data[ 'json' ] ) {
+				$jsonResponse = $data[ 'json' ];
+			}
+			else {
+				$jsonResponse = @json_encode( $json );
+			}
 
 			// JSONP
 			if ( isset( $_REQUEST[ 'callback' ] ) ) {
@@ -196,7 +149,7 @@
 
 			break;
 		default:
-			if ( file_exists( '../public/skins/' . $EddyFC[ 'skin' ] . '/template.phtml' ) ) {
+			if ( file_exists( APP_ROOT . '/public/skins/' . $EddyFC[ 'skin' ] . '/template.phtml' ) ) {
 				// Load a skin (which will load the view)
 				foreach ( $EddyFC[ 'viewdata' ] as $var => $val ) {
 					$$var = $val;

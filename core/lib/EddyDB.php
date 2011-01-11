@@ -9,7 +9,8 @@
 		private $user = MYSQL_USER;
 		
 		private static $instance;
-	
+		private static $debugQueryCount;
+
 		public static $totalQueryTime = 0;
 		public static $insertId;
 		public static $queries;
@@ -40,23 +41,40 @@
 				return new self();
 			}
 		}
-		
+
+		/**
+		 * Alias for getEscapeString()
+		 * @see EddyDB::getEscapeString()
+		 * @param string $str
+		 * @return string The escaped string
+		 */
 		public static function esc_str( $str ) {
 			return self::getEscapeString( $str );
 		}
-		
+
+		/**
+		 * Runs MySQLi::escape_string() against the given string
+		 * @param string $str
+		 * @return string The escaped string
+		 */
 		public static function getEscapeString( $str ) {
 			$db = self::getInstance();
 			
 			return $db->escape_string( $str );
 		}
-		
+
+		/**
+		 * Static wrapper for running queries against the DB singleton
+		 * @param string $query
+		 * @return mixed
+		 * @see MySQLi::query()
+		 */
 		public static function q( $query ) {
 			$db = self::getInstance();
 			
 			return $db->query( $query );
 		}
-	
+
 		public function query( $query ) {
 			$startTime = microtime( true );
 			$result = parent::query( $query );
@@ -66,8 +84,9 @@
 			self::$totalQueryTime += $execTime;
 	
 			if ( $result ) {
-				if ( DEBUG ) {
-					self::$queries[] = array ( 'string' => $query, 'time' => $execTime );
+				if ( DEBUG && self::$debugQueryCount < 100 ) {
+					self::$queries[] = array( $query, $execTime );
+					self::$debugQueryCount++;
 				}
 	
 				if ( $this->insert_id ) {
@@ -75,8 +94,8 @@
 				}
 			}
 			else {
-				FB::error( $query, 'Error in Query: ' . mysqli_error( $this ) );
-				FB::trace( 'Stack Trace' );
+				//FB::error( $query, 'Error in Query: ' . $this->error );
+				//FB::trace( 'Stack Trace' );
 			}
 	
 			return $result;

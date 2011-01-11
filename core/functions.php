@@ -4,59 +4,81 @@
 	 * @param string $class Class name
 	 */
 	function __autoload ( $class ) {
+		// XXX: There may be unexpected behaviour on case-insensitive filesystems
+
+
 		if ( strpos( $class . '$', '_Controller$' ) !== false ) {
 			// This is a controller
-			$class = strtolower( str_ireplace( '_Controller$', '', $class . '$' ) );
-			$classFile = str_replace( '_', '/', $class );
+			$classFile = str_replace( '_', '/', strtolower( str_ireplace( '_Controller$', '', $class . '$' ) ) );
 
-			if ( file_exists( '../app/controllers/' . $classFile . '.php' ) ) {
+			if ( file_exists( APP_ROOT . '/app/controllers/' . $classFile . '.php' ) ) {
 				include_once 'app/controllers/' . $classFile . '.php';
 			}
 		}
-		/*
-		elseif ( strpos( $class . '$', '_Model$' ) !== false ) {
-			// This is a model
-			$class = strtolower( str_ireplace( '_Model$', '', $class . '$' ) );
-			$classFile = str_replace( '_', '/', $class );
+		elseif ( strpos( $class . '$', '_Helper$' ) !== false ) {
+			// This is a helper
+			$classFile = str_ireplace( '_Helper$', '', $class . '$' );
 
-			if ( file_exists( 'models/' . $classFile . '.php' ) ) {
-				include_once( 'models/' . $classFile . '.php' );
+			if ( file_exists( APP_ROOT . '/app/helpers/' . $classFile . '.php' ) ) {
+				include_once 'app/helpers/' . $classFile . '.php';
+			}
+			elseif ( file_exists( CORE_ROOT . '/helpers/' . $classFile ) ) {
+				include_once 'helpers/' . $classFile;
 			}
 		}
 		else {
-			$classFile = str_replace( '_', '/', $class );
+			// This is any other class (including models and core classes)
 
-			if ( file_exists( 'classes/' . $classFile . '.php' ) ) {
-				include_once( 'classes/' . $classFile . '.php' );
+			// See if it's a model first
+			if ( file_exists( APP_ROOT . '/app/models/' . $class . '.php' ) ) {
+				include_once 'app/models/' . $class . '.php';
+			}
+			else {
+				$classFile = str_replace( '_', '/', $class ) . '.php';
+
+				// Override core classes simply by creating a class with the same filename in /app/lib
+				if ( file_exists( APP_ROOT . '/app/lib/' . $classFile ) ) {
+					include_once 'app/lib/' . $classFile;
+				}
+				elseif ( file_exists( CORE_ROOT . '/lib/' . $classFile ) ) {
+					include_once 'lib/' . $classFile;
+				}
+				elseif ( file_exists( CORE_ROOT . '/extras/' . $classFile ) ) {
+					include_once 'extras/' . $classFile;
+				}
 			}
 		}
-		*/
-		else {
-			// This is a standard class
-			$classFile = str_replace( '_', '/', $class ) . '.php';
-	
-			if ( file_exists( '../app/models/' . $classFile ) ) {
-				include_once 'app/models/' . $classFile;
-			}
-			elseif ( file_exists( '../app/lib/' . $classFile ) ) {
-				include_once 'app/lib/' . $classFile;
-			}
-			elseif ( file_exists( '../core/lib/' . $classFile ) ) {
-				include_once 'core/lib/' . $classFile;
-			}
-			
-			if ( DEBUG && !class_exists( $class, false ) ) {
-				$prototype = 'class ' . $class . ' extends EddyModel {
-						public static function find( $args = null ) {
-							return parent::find( __CLASS__, $args );
-						}
+
+		// These are non-crucial classes that are used in the core, but not necessary
+		$ignoreClasses = array( 'FB', 'FirePHP' );
+
+		if ( !class_exists( $class, false ) ) {
+			if ( in_array( $class, $ignoreClasses ) ) {
+				// Fudge it
+				$prototype = 'class ' . $class . ' {
+						public function __get($var){}
+						public function __set($var, $val){}
+						public function __call($method, $params){}
+						public static function __callStatic($method, $params){}
 					}';
-		
+
 				eval( $prototype );
+			}
+			else {
+				throw new Exception( "Couldn't load class: $class" );
 			}
 		}
 	}
+
+	// TODO: Some of these functions should be helper classes
 	
+	/**
+	 * Amend the query string
+	 * @param array $params Array of $_GET params you want to adjust and their new values
+	 * @param boolean[optional] $toggle Force to switch item on or off. Default: false
+	 * @param boolean[optional] $clearCurrent Use existing query string or start from scratch. Default: false
+	 * @return mixed New query string or false
+	 */
 	function amendQueryString( $params, $toggle = false, $clearCurrent = false ) {
 		if ( !$clearCurrent && $_SERVER[ 'QUERY_STRING' ] != '' ) {
 			$newQueryString = explode_with_keys( '&', $_SERVER[ 'QUERY_STRING' ] );
@@ -98,7 +120,7 @@
 		if ( is_array( $array ) ) {
 			foreach ( $array as $value ) {
 				$row = explode( '=', $value );
-				$output [ $row[0] ] = $row[1];
+				$output[ $row[0] ] = $row[1];
 			}
 	
 			return $output;
@@ -200,7 +222,7 @@
 	}
 	
 	function googleAnalyticsScript() {
-		if ( defined( 'GA_UAID' ) && !$_SESSION[ 'notrack' ] ) {
+		if ( defined( 'GA_UAID' ) && !$_SESSION[ 'notrack' ] && GA_UAID ) {
 			echo "<script type=\"text/javascript\">
 					var _gaq = _gaq || [];
 					_gaq.push(['_setAccount', '" . GA_UAID . "']);
@@ -276,7 +298,7 @@
 			$$var = $val;
 		}
 
-		if ( file_exists( '../app/views/' . $EddyFC[ 'view' ] . '.phtml' ) ) {
+		if ( file_exists( APP_ROOT . '/app/views/' . $EddyFC[ 'view' ] . '.phtml' ) ) {
 			include_once 'app/views/' . $EddyFC[ 'view' ] . '.phtml';
 		}
 		else {
@@ -364,7 +386,7 @@
 				return $refl->isPrivate();
 				break;
 		}
-	} 
+	}
 	
 	function now() {
 		return date( 'Y-m-d H:i:s' );
