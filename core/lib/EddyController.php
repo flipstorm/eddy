@@ -3,23 +3,19 @@
 		protected $data = array();
 		protected $view;
 		protected $skin = 'default';
+		protected $cache = OUTPUT_CACHE_ALL;
 
-		private $min_user_rank;
+		//public $cache_path = OUTPUT_CACHE_PATH_DEFAULT;
+		public $cache_compress = OUTPUT_CACHE_COMPRESS_DEFAULT;
+		//public $cache_file;
 		
-		public function getData() {
+		public $cancel_request;
+		
+		protected function _get_data() {
 			return $this->data;
 		}
 		
-		public function getMinUserRank() {
-			return $this->min_user_rank;
-		}
-		
-		protected function _set_min_user_rank( $value ) {
-			$this->min_user_rank = $value;
-			$this->goSecure();
-		}
-		
-		public function getView() {
+		protected function _get_view() {
 			global $EddyFC;
 			
 			if ( isset( $this->view ) ) {
@@ -51,17 +47,33 @@
 			return $view;
 		}
 		
-		public function getSkin() {
+		protected function _get_skin() {
 			return $this->skin;
+		}
+
+		protected function _call_error404() {
+			$this->error404();
+		}
+
+		protected function _call_error410() {
+			$this->error410();
 		}
 
 		/*
 		 * Force the 404 error page to show
 		 */
-		public function error404() {
-			$this->data ['title'] = 'Page Not Found';
+		protected function error404() {
+			$this->data[ 'title' ] = 'Not Found';
 			header( 'HTTP/1.1 404 Not Found' );
-			$this->view = '404';
+			$this->view = 'errors/404';
+			$this->cache = false;
+		}
+		
+		protected function error410() {
+			$this->data[ 'title' ] = 'Gone';
+			header( 'HTTP/1.1 410 Gone' );
+			$this->view = 'errors/410';
+			$this->cache = false;
 		}
 
 		/*
@@ -74,8 +86,8 @@
 			}
 
 			if ( $recordDestination ) {
-				$request = getCurrentURIPath();
-				$_SESSION[ 'Destination' ] = $request[ 'actual' ];
+				$request = URI_Helper::get_current();
+				$_SESSION[ 'destination' ] = $request[ 'actual' ];
 			}
 
 			// If this is an AJAX call, we'll have to handle the redirect on the front-end
@@ -86,12 +98,23 @@
 			}
 			else {
 				$this->data[ 'redirect' ] = $location;
+				$this->cancel_request = true;
 			}
 		}
 
-		private function goSecure( $redirect = '/login' ) {
-			if ( $_SESSION[ 'UserRank' ] < $this->min_user_rank ) {
+		protected function security( $barrel, $key, $redirect = '/login' ) {
+			$unlocked = call_user_func( $barrel, $key );
+
+			if ( !$unlocked ) {
 				$this->redirect( $redirect, true );
 			}
+		}
+
+		protected function _get_cacheable() {
+			if ( strtoupper( $_SERVER[ 'REQUEST_METHOD' ] ) != 'POST' && OUTPUT_CACHE_ENABLED ) {
+				return $this->cache;
+			}
+			
+			return false;
 		}
 	}

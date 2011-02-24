@@ -9,8 +9,9 @@
 		private $user = MYSQL_USER;
 		
 		private static $instance;
-		private static $debugQueryCount;
 
+		public static $debugQueryCount;
+		public static $debugActualQueryCount;
 		public static $totalQueryTime = 0;
 		public static $insertId;
 		public static $queries;
@@ -88,6 +89,8 @@
 					self::$queries[] = array( $query, $execTime );
 					self::$debugQueryCount++;
 				}
+
+				self::$debugActualQueryCount++;
 	
 				if ( $this->insert_id ) {
 					self::$insertId = $this->insert_id;
@@ -99,6 +102,13 @@
 			}
 	
 			return $result;
+		}
+
+		public static function get_value( $query ) {
+			$result = self::q( $query );
+			$row = $result->fetch_row();
+
+			return $row[0];
 		}
 	
 		public static function getDatabaseName() {

@@ -4,14 +4,23 @@
 		<meta charset="UTF-8" />
 		<title><?php echo $title; ?></title>
 
-		<link rel="stylesheet" type="text/css" href="<?php echo SITE_ROOT; ?>/css/reset.css" media="all" />
-		<link rel="stylesheet" type="text/css" href="<?php echo $EddyFC[ 'skinfolder' ]; ?>/text.css" media="all" />
-		<link rel="stylesheet" type="text/css" href="<?php echo $EddyFC[ 'skinfolder' ]; ?>/styles.css" media="all" />
+		<link rel="stylesheet" href="<?php echo SITE_ROOT; ?>/css/reset.css" />
+		<link rel="stylesheet" href="<?php echo $EddyFC[ 'skinfolder' ]; ?>/text.css" />
+		<link rel="stylesheet" href="<?php echo $EddyFC[ 'skinfolder' ]; ?>/styles.css" />
 
-		<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.4/jquery.min.js"></script>
+		<!-- <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.4/jquery.min.js"></script> -->
+		<?php
+			if ( is_array( $headjs ) ) {
+				foreach ( $headjs as $src ) {
+					echo '<script src="' . $src . '"></script>';
+				}
+			}
+		?>
 	</head>
 
 	<body>
-		<?php include_view(); ?>
+		<div style="width:800px;margin:auto">
+			<?php include_view(); ?>
+		</div>
 	</body>
 </html>

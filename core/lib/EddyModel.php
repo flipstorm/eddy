@@ -8,6 +8,7 @@
 		
 		private $table;
 		private $original;
+		private $additional_save_fields = array();
 		
 		public $_id;
 
@@ -16,14 +17,14 @@
 		 * @param int $id Pass an id to get a saved object
 		 */
 		public function __construct( $id = null ) {
-			$this->table = strtolower( get_class( $this ) );
+			$this->table = self::getTableName( get_class( $this ) );
 	
 			if ( $this->id ) {
 				// $this->id was set before we got here (i.e. by MySQLi_Result->fetch_object() call)
 				$this->isDataBound = true;
 				$this->original = get_object_public_vars( $this );
 			}
-			elseif ( is_id( $id ) && !$this->isDataBound ) {
+			elseif ( MySQL_Helper::is_id( $id ) && !$this->isDataBound ) {
 				$cachedObj = self::$cache[ $this->table . $id ];
 
 				if ( $cachedObj instanceof $this ) {
@@ -41,11 +42,11 @@
 			}
 		}
 		
-		public function _get_id() {
+		protected function _get_id() {
 			return $this->id;
 		}
 		
-		public function _get_isDataBound() {
+		protected function _get_isDataBound() {
 			return $this->isDataBound;
 		}
 
@@ -65,6 +66,10 @@
 			return $row[ 'count' ];
 		}
 
+		final private static function getTableName( $table ) {
+			return strtolower( $table );
+		}
+
 		/**
 		 * Find a record in the database and map its data onto this instance's properties
 		 * @param int $id
@@ -72,7 +77,7 @@
 		 * @final
 		 */
 		final private function findById( $id ) {
-			if ( is_id( $id ) ) {
+			if ( MySQL_Helper::is_id( $id ) ) {
 				$result = EddyDB::q( 'SELECT * FROM `' . $this->table . '` WHERE id = ' . $id );
 
 				if ( $result instanceof mysqli_result ) {
@@ -100,14 +105,21 @@
 		 * @param array $args The clauses to use in the query (valid keys: WHERE, ORDERBY, LIMIT)
 		 * @return array An array of objects found
 		 */
-		protected static function find( $table, $args = null ) {
-			$table = strtolower( $table );
+		protected static function find( $table, $args = null, $use_subquery = false ) {
+			$table = self::getTableName( $table );
 			
 			$query = 'SELECT * FROM `' . $table . '`';
 
 			$query .= ( !empty( $args[ 'WHERE' ] ) ) ? ' WHERE ' . $args[ 'WHERE' ] : '';
-			$query .= ( !empty( $args[ 'ORDERBY' ] ) ) ? ' ORDER BY ' . $args[ 'ORDERBY' ] : '';
-			$query .= ( !empty( $args[ 'LIMIT' ] ) ) ? ' LIMIT ' . $args[ 'LIMIT' ] : '';
+			$order_by = ( !empty( $args[ 'ORDERBY' ] ) ) ? ' ORDER BY ' . $args[ 'ORDERBY' ] : '';
+			$limit = ( !empty( $args[ 'LIMIT' ] ) ) ? ' LIMIT ' . $args[ 'LIMIT' ] : '';
+
+			if ( $use_subquery ) {
+				$query = 'SELECT * FROM ( ' . $query . ' ) AS ' . $table . ' ' . $order_by . ' ' . $limit;
+			}
+			else {
+				$query .= $order_by . $limit;
+			}
 			
 			$result = EddyDB::q( $query );
 	
@@ -224,10 +236,7 @@
 			$this->findById( $this->id );
 		}
 
-		/*
-		 * Used to pass certain protected or private properties over to JSON that wouldn't otherwise make it
-		public function __sleep() {
-			// If we're JSON encoding this object, we want some of the methods to be available
+		protected function add_data( $field, $value ) {
+			$this->additional_save_fields[ $field ] = $value;
 		}
-		*/
 	}
