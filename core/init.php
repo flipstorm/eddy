@@ -27,6 +27,26 @@
 	set_exception_handler( 'exceptionHandler' );
 	// TODO: Upgrade PHP errors to exceptions!
 
+	register_shutdown_function( function( $requeststart ) {
+		global $EddyFC;
+		
+		if ( DEBUG ) {
+			@FB::table( count( EddyDB::$queries ) . ' Queries', array_merge( array( array( 'Query', 'Query Time (s)' ) ), EddyDB::$queries ) );
+
+			unset( $EddyFC[ 'viewdata' ] );
+			FB::info( $EddyFC, '$EddyFC' );
+			FB::info( $_SERVER, '$_SERVER' );
+			FB::info( $_SESSION, '$_SESSION' );
+			FB::info( $_GET, '$_GET' );
+			FB::info( $_POST, '$_POST' );
+			FB::info( 'Page took ' . ( microtime(true) - $requeststart ) . 's to prepare' );
+		}
+
+		if ( ob_get_level() > 0 ) {
+			ob_end_flush();
+		}
+	}, $requeststart );
+
 	$EddyFC = URI_Helper::handle_request();
 
 	// ### CACHING - CHECK FOR CACHED RESOURCE ###
@@ -71,12 +91,12 @@
 		}
 		elseif ( method_exists( $EddyFC[ 'requestcontroller' ], 'index' ) ) {
 			$EddyFC[ 'requestmethod' ] = 'index';
-			$params = trim( str_replace( str_replace( '_', '/', $EddyFC[ 'controllerfilename' ] ), '', $EddyFC[ 'request' ][ 'fixed' ] ), '/' );
+			$params = trim( str_replace( '^' . $EddyFC[ 'controllerfilename' ] . '/', '', '^' . $EddyFC[ 'request' ][ 'actual' ] ), '/^' );
 		}
 
 		// Remove the format from the end of the paramaters
 		if ( !empty( $params ) ) {
-			$EddyFC[ 'requestparams' ] = str_replace( '.' . $EddyFC[ 'requestformat' ], '', $params );
+			$EddyFC[ 'requestparams' ] = trim( str_replace( '.' . $EddyFC[ 'requestformat' ] . '$', '', $params . '$' ), '$' );
 		}
 
 		// Instantiate the controller
@@ -213,22 +233,5 @@
 			header( 'Content-Disposition: attachment;filename="' . $cd_filename . '"' );
 			header( 'Content-Transfer-Encoding: binary' );
 			break;
-	}
-
-	if ( DEBUG ) {
-		// This should be a table
-		@FB::table( count( EddyDB::$queries ) . ' Queries', array_merge( array( array( 'Query', 'Query Time (s)' ) ), EddyDB::$queries ) );
-
-		unset( $EddyFC[ 'viewdata' ] );
-		FB::info( $EddyFC, '$EddyFC' );
-		FB::info( $_SERVER, '$_SERVER' );
-		FB::info( $_SESSION, '$_SESSION' );
-		FB::info( $_GET, '$_GET' );
-		FB::info( $_POST, '$_POST' );
-		FB::info( 'Page took ' . ( microtime(true) - $requeststart ) . 's to prepare' );
-	}
-
-	if ( ob_get_level() > 0 ) {
-		ob_end_flush();
 	}
 ?>

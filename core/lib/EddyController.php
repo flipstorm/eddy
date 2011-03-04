@@ -24,7 +24,7 @@
 			}
 			elseif ( $EddyFC[ 'requestparams' ] ) {
 				// Use the current path without the parameters
-				$viewpath = str_ireplace( $EddyFC[ 'requestparams' ], '', $EddyFC[ 'request' ] );
+				$viewpath = str_ireplace( $EddyFC[ 'requestparams' ], '', $EddyFC[ 'request' ][ 'fixed' ] );
 				
 				if ( empty( $viewpath ) ) {
 					$viewpath = $EddyFC[ 'requestmethod' ];

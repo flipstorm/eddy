@@ -9,11 +9,13 @@
 
 		if ( strpos( $class . '$', '_Controller$' ) !== false ) {
 			// This is a controller
-			$classFile = str_replace( '_', '/', strtolower( str_ireplace( '_Controller$', '', $class . '$' ) ) ) . '.php';
+			$classFile = strtolower( str_ireplace( '_Controller$', '', $class . '$' ) ) . '.php';
 
 			if ( file_exists( APP_ROOT . '/app/controllers/' . $classFile ) ) {
 				include_once 'app/controllers/' . $classFile;
 			}
+
+			$isController = true;
 		}
 		elseif ( strpos( $class . '$', '_Helper$' ) !== false ) {
 			// This is a helper
@@ -74,7 +76,7 @@
 
 				eval( $prototype );
 			}
-			else {
+			elseif ( DEBUG && !$isController ) {
 				throw new Exception( "Couldn't load class: $class" );
 			}
 		}

@@ -86,26 +86,23 @@
 			}
 
 			// Calculate the controller class naming convention
-			$url = urldecode( strtolower( $return[ 'requestpath' ] ) );
+			$url = urldecode( $return[ 'requestpath' ] );
 
-			// Clean up the request
-			$controllerName = str_replace( ' ', '_',
-					ucwords (
-						preg_replace( array( '/\s/', '/[^a-z0-9\\/]+/i', '@/@' ), array( '', '', ' ' ),
-							$url
-						)
-					)
-				);
+			// Clean up the request and cycle through controllers until we find one
+			$controllerPath = explode( '/', preg_replace( array( '/\s/', '/[^a-z0-9\\/_\\-\\.]+/i' ), array( '', '' ), $url ) );
 
-			// Cycle through controllers until we find one
-			$controllerPath = explode( '_', $controllerName );
+			$controllerNameCleaner = function( $path ){
+				return preg_replace( '/[^a-z0-9_\\/]+/i', '_', str_replace( ' ', '_', ucwords( implode( ' ', $path ) ) ) );
+			};
+
+			$controllerName = $controllerNameCleaner( $controllerPath );
 
 			while ( !class_exists( $controllerName . '_Controller' ) ) {
 				// Cycle up until we find a class that does exist
 				if ( count( $controllerPath ) > 0 ) {
 					$return[ 'requestmethod' ] = strtolower( array_pop( $controllerPath ) );
 
-					$upperLevelControllerName = str_replace( ' ', '_', ucwords( implode( ' ', $controllerPath ) ) );
+					$upperLevelControllerName = $controllerNameCleaner( $controllerPath );
 				}
 				else {
 					$upperLevelControllerName = 'Default';
@@ -118,8 +115,7 @@
 
 			// Finish controller naming
 			$return[ 'controllerfilename' ] = strtolower( $controllerName );
-			$controllerName = $controllerName . '_Controller';
-			$return[ 'requestcontroller' ] = $controllerName;
+			$return[ 'requestcontroller' ] = str_replace( '/', '_', $controllerName ) . '_Controller';
 
 			return $return;
 		}
