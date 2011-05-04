@@ -44,21 +44,11 @@
 		}
 
 		/**
-		 * Alias for getEscapeString()
-		 * @see EddyDB::getEscapeString()
-		 * @param string $str
-		 * @return string The escaped string
-		 */
-		public static function esc_str( $str ) {
-			return self::getEscapeString( $str );
-		}
-
-		/**
 		 * Runs MySQLi::escape_string() against the given string
 		 * @param string $str
 		 * @return string The escaped string
 		 */
-		public static function getEscapeString( $str ) {
+		public static function esc_str( $str ) {
 			$db = self::getInstance();
 			
 			return $db->escape_string( $str );

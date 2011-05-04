@@ -39,8 +39,8 @@
 			return false;
 		}
 
-		public static function datestamp() {
-			return date( 'Y-m-d H:i:s' );
+		public static function datestamp( $adjust_by = null ) {
+			return date( 'Y-m-d H:i:s', time() + $adjust_by );
 		}
 
 		public static function orderByHref( $var, $default = null, $getOrderByParam = 'ob', $getOrderParam = 'o' ) {

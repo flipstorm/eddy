@@ -5,8 +5,7 @@
 		<title><?php echo $title; ?></title>
 
 		<link rel="stylesheet" href="<?php echo SITE_ROOT; ?>/css/reset.css" />
-		<link rel="stylesheet" href="<?php echo $EddyFC[ 'skinfolder' ]; ?>/text.css" />
-		<link rel="stylesheet" href="<?php echo $EddyFC[ 'skinfolder' ]; ?>/styles.css" />
+		<link rel="stylesheet" href="<?php echo SITE_ROOT; ?>/css/text.css" />
 
 		<!-- <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.4/jquery.min.js"></script> -->
 		<?php
@@ -20,7 +19,7 @@
 
 	<body>
 		<div style="width:800px;margin:auto">
-			<?php include_view(); ?>
+			<?php EddyView::load(); ?>
 		</div>
 	</body>
 </html>

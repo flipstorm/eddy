@@ -1,8 +1,4 @@
 <?php
-	// Set critical constants here
-	define( 'APP_ROOT', $appRoot );
-	define( 'CORE_ROOT', $coreRoot );
-
 	$host = strtolower( $_SERVER[ 'HTTP_HOST' ] );
 
 	// Set overridable constants here
@@ -11,14 +7,15 @@
 			$config = array(
 				// Basic config
 				'DEBUG' => true,
-				'ENVIRONMENT' => 'dev',
 				'SITE_ROOT' => '/~simonhamp/eddy2.0/public',
 
+				'ENVIRONMENT' => 'dev',
+				
 				// MySQL
-				'MYSQL_DB'	=> 'vixles',
-				'MYSQL_HOST' => '127.0.0.1',
-				'MYSQL_USER' => 'root',
-				'MYSQL_PASSWORD' => 'root',
+				'MYSQL_DB'	=> '',
+				'MYSQL_HOST' => '',
+				'MYSQL_USER' => '',
+				'MYSQL_PASSWORD' => '',
 				'MYSQL_PORT' => null,
 				'MYSQL_SOCKET' => null,
 				'MYSQL_TBLPREF' => null,
@@ -39,10 +36,4 @@
 			break;
 		default:
 			die( 'Invalid environment: ' . $_SERVER[ 'HTTP_HOST' ] );
-	}
-
-	foreach ( $config as $const => $value ) {
-		if ( !defined( $const ) ) {
-			define( $const, $value );
-		}
 	}

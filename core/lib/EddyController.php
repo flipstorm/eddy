@@ -16,32 +16,30 @@
 		}
 		
 		protected function _get_view() {
-			global $EddyFC;
-			
 			if ( isset( $this->view ) ) {
 				// Prefer explicitly-defined view
 				$view = $this->view;
 			}
-			elseif ( $EddyFC[ 'requestparams' ] ) {
+			elseif ( Eddy::$request->params ) {
 				// Use the current path without the parameters
-				$viewpath = str_ireplace( $EddyFC[ 'requestparams' ], '', $EddyFC[ 'request' ][ 'fixed' ] );
+				$viewpath = str_ireplace( Eddy::$request->params, '', Eddy::$request->fixed );
 				
 				if ( empty( $viewpath ) ) {
-					$viewpath = $EddyFC[ 'requestmethod' ];
+					$viewpath = Eddy::$request->method;
 				}
-				elseif ( strpos( $viewpath, $EddyFC[ 'requestmethod' ] ) === false ) {
-					$viewpath .= $EddyFC[ 'requestmethod' ];
+				elseif ( strpos( $viewpath, Eddy::$request->method ) === false ) {
+					$viewpath .= Eddy::$request->method;
 				}
 
 				$view = trim( $viewpath, '/' );
 			}
 			else {
 				// Use the path and method name
-				if ( $EddyFC[ 'requestpath' ] != 'default' ) {
-					$requestpath = $EddyFC[ 'requestpath' ] . '/';
+				if ( Eddy::$request->path != 'default' ) {
+					$requestpath = Eddy::$request->path . '/';
 				}
 				
-				$view = $requestpath . $EddyFC[ 'requestmethod' ];
+				$view = $requestpath . Eddy::$request->method;
 			}
 			
 			return $view;
@@ -86,8 +84,7 @@
 			}
 
 			if ( $recordDestination ) {
-				$request = URI_Helper::get_current();
-				$_SESSION[ 'destination' ] = $request[ 'actual' ];
+				$_SESSION[ 'destination' ] = Eddy::$request->actual;
 			}
 
 			// If this is an AJAX call, we'll have to handle the redirect on the front-end

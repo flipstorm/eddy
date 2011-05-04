@@ -6,41 +6,42 @@
 	function __autoload ( $class ) {
 		// XXX: There may be unexpected behaviour on case-insensitive filesystems
 
-
-		if ( strpos( $class . '$', '_Controller$' ) !== false ) {
+		if ( strpos( '^' . $class, '^\\Controllers\\' ) !== false || strpos( '^' . $class, '^Controllers\\' ) !== false ) {
 			// This is a controller
-			$classFile = strtolower( str_ireplace( '_Controller$', '', $class . '$' ) ) . '.php';
-
-			if ( file_exists( APP_ROOT . '/app/controllers/' . $classFile ) ) {
-				include_once 'app/controllers/' . $classFile;
-			}
-
 			$isController = true;
+			$classFile = strtolower( str_ireplace( array( '^\\', '^Controllers\\', '\\', '_Controller$' ), array( '^', '', '/', '' ), '^' . $class . '$' ) ) . '.php';
+			
+			if ( file_exists( APP_ROOT . '/' . Eddy::$app_folder . '/controllers/' . $classFile ) ) {
+				include_once( Eddy::$app_folder . '/controllers/' . $classFile );
+			}
 		}
 		elseif ( strpos( $class . '$', '_Helper$' ) !== false ) {
 			// This is a helper
 			$classFile = str_ireplace( '_Helper$', '', $class . '$' ) . '.php';
 
-			if ( file_exists( APP_ROOT . '/app/helpers/' . $classFile ) ) {
-				include_once 'app/helpers/' . $classFile;
+			if ( file_exists( APP_ROOT . '/' . Eddy::$app_folder . '/helpers/' . $classFile ) ) {
+				include_once( Eddy::$app_folder . '/helpers/' . $classFile );
 			}
 			elseif ( file_exists( CORE_ROOT . '/helpers/' . $classFile ) ) {
 				include_once 'helpers/' . $classFile;
+			}
+			else {
+				echo "Helper doesn't exist: '/helpers/$classFile'";
 			}
 		}
 		else {
 			// This is any other class (including models and core classes)
 
 			// See if it's a model first
-			if ( file_exists( APP_ROOT . '/app/models/' . $class . '.php' ) ) {
-				include_once 'app/models/' . $class . '.php';
+			if ( file_exists( APP_ROOT . '/' . Eddy::$app_folder . '/models/' . $class . '.php' ) ) {
+				include_once( Eddy::$app_folder . '/models/' . $class . '.php' );
 			}
 			else {
 				$classFile = str_replace( '_', '/', $class ) . '.php';
 
 				// Override core classes simply by creating a class with the same filename in /app/lib
-				if ( file_exists( APP_ROOT . '/app/lib/' . $classFile ) ) {
-					include_once 'app/lib/' . $classFile;
+				if ( file_exists( APP_ROOT . '/' . Eddy::$app_folder . '/lib/' . $classFile ) ) {
+					include_once( Eddy::$app_folder . '/lib/' . $classFile );
 				}
 				elseif ( file_exists( CORE_ROOT . '/lib/' . $classFile ) ) {
 					include_once 'lib/' . $classFile;
@@ -81,14 +82,32 @@
 			}
 		}
 	}
+	
+	register_shutdown_function(function(){
+		if ( DEBUG ) {
+			@FB::table( count( EddyDB::$queries ) . ' Queries', array_merge( array( array( 'Query', 'Query Time (s)' ) ), EddyDB::$queries ) );
 
-	// TODO: Some of these functions should be helper classes
-	function exceptionHandler( Exception $e ) {
+			//unset( $EddyFC[ 'viewdata' ] );
+			FB::info( Eddy::$request, 'Eddy::$request' );
+			FB::info( Eddy::$controller, 'Eddy::$controller' );
+			FB::info( $_SERVER, '$_SERVER' );
+			FB::info( $_SESSION, '$_SESSION' );
+			FB::info( $_GET, '$_GET' );
+			FB::info( $_POST, '$_POST' );
+			//FB::info( 'Page took ' . ( microtime(true) - $EddyFC[ 'start' ] ) . 's to prepare' );
+		}
+
+		if ( ob_get_level() > 0 ) {
+			ob_end_flush();
+		}
+	});
+	
+	set_exception_handler(function( Exception $e ) {
 		echo '<h1>Don\'t you know how to Catch yet?</h1>';
-		
+
 		echo $e->getMessage() . '<h2>Stack Trace</h2>' ;
 		FB::info($e->getTrace());
-		
+
 		foreach ( $e->getTrace() as $stack ) {
 			if ( $stack[ 'class' ] ) {
 				echo $stack[ 'class' ] . $stack[ 'type' ] . $stack[ 'function' ] . '(' . implode( ', ', $stack[ 'args' ] ) . ')<br />';
@@ -97,15 +116,24 @@
 			else {
 				echo 'Line ' . $stack[ 'line' ] . ' in ' . $stack[ 'file' ] . '<br /><br />';
 			}
-			
-		}
-	}
 
+		}
+	});
+	
+	function buffer_include( $filepath, $vars = array() ) {
+		ob_start();
+		
+		extract( $vars );
+		include( $filepath );
+
+		return ob_get_clean();
+	}
 	
 	function get_object_public_vars( $obj ) {
 		$vars = get_object_vars( $obj );
 		
-		// Remove vars that begin with '_'
+		// Remove vars that begin with '_', although technically public, they're treated as private for the purposes of this function
+		// XXX: This isn't very intuitive. Is there a better way to do this?
 		foreach ( $vars as $key => $val ) {
 			if ( $key{0} !== '_' ) {
 				$cleanVars[ $key ] = $val;
@@ -113,44 +141,6 @@
 		}
 		
 		return $cleanVars;
-	}
-
-
-	// These should be part of a front controller class
-	function include_partial( $path ) {
-		global $EddyFC;
-
-		if ( is_array( $EddyFC[ 'viewdata' ] ) ) {
-			extract( $EddyFC[ 'viewdata' ] );
-		}
-		
-		$partial_path = 'app/views/partials/' . $path . '.part.phtml';
-		$partial_file = APP_ROOT . '/' . $partial_path;
-
-		if ( file_exists( $partial_file ) ) {
-			include ( $partial_path );
-		}
-		elseif ( DEBUG ) {
-			echo '{Partial doesn\'t exist: ' . $partial_file . '}';
-		}
-	}
-	
-	function include_view() {
-		global $EddyFC;
-
-		if ( is_array( $EddyFC[ 'viewdata' ] ) ) {
-			extract( $EddyFC[ 'viewdata' ] );
-		}
-
-		$view_path = 'app/views/' . $EddyFC[ 'view' ] . '.phtml';
-		$view_file = APP_ROOT . '/' . $view_path;
-
-		if ( file_exists( $view_file ) ) {
-			include_once ( $view_path );
-		}
-		elseif ( DEBUG ) {
-			echo '{View doesn\'t exist: ' . $view_file . '}';
-		}
 	}
 
 	// Move into Users model
@@ -215,15 +205,12 @@
 	 * @param int $count The number of times to copy it
 	 * @return array Array of copies of the original item
 	 */
-	function x_of( $item, $count ) {
-		while ( count( $items ) < $count ) {
-			if ( is_object( $item ) ) {
-				$items[] = clone $item;
-			}
-			else {
-				$items[] = $item;
-			}
+	function x_of( $item, $count ){
+		$items = array();
+	
+		for ( $i = 1; $i <= $count; $i++ ){
+			$items[] = is_object( $item ) ? clone $item : $item;
 		}
-		
+
 		return $items;
 	}

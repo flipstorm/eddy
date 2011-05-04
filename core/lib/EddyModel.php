@@ -102,10 +102,10 @@
 		/**
 		 * Perform a basic search query
 		 * @param string $table Use __CLASS__
-		 * @param array $args The clauses to use in the query (valid keys: WHERE, ORDERBY, LIMIT)
+		 * @param array $args The clauses to use in the query (valid keys: WHERE, ORDERBY, LIMIT, GROUPBY)
 		 * @return array An array of objects found
 		 */
-		protected static function find( $table, $args = null, $use_subquery = false ) {
+		protected static function find( $table, $args = null, $subquery = false ) {
 			$table = self::getTableName( $table );
 			
 			$query = 'SELECT * FROM `' . $table . '`';
@@ -113,12 +113,17 @@
 			$query .= ( !empty( $args[ 'WHERE' ] ) ) ? ' WHERE ' . $args[ 'WHERE' ] : '';
 			$order_by = ( !empty( $args[ 'ORDERBY' ] ) ) ? ' ORDER BY ' . $args[ 'ORDERBY' ] : '';
 			$limit = ( !empty( $args[ 'LIMIT' ] ) ) ? ' LIMIT ' . $args[ 'LIMIT' ] : '';
+			$group_by = ( !empty( $args[ 'GROUPBY' ] ) ) ? ' GROUP BY ' . $args[ 'GROUPBY' ] : '';
 
-			if ( $use_subquery ) {
-				$query = 'SELECT * FROM ( ' . $query . ' ) AS ' . $table . ' ' . $order_by . ' ' . $limit;
-			}
-			else {
-				$query .= $order_by . $limit;
+			switch ( $subquery ) {
+				case 'group':
+					$query = 'SELECT * FROM ( ' . $query . $order_by . ' ) AS ' . $table . $group_by . $limit;
+					break;
+				case 'order':
+					$query = 'SELECT * FROM ( ' . $query . $group_by . ' ) AS ' . $table . $order_by . $limit;
+					break;
+				default:
+					$query .= $group_by . $order_by . $limit;
 			}
 			
 			$result = EddyDB::q( $query );
@@ -146,17 +151,27 @@
 
 			$this_public_vars = get_object_public_vars( $this );
 
+			// XXX: This isn't such a good idea!
 			if ( array_key_exists( 'created_date', $this_public_vars ) ) {
-				$this->created_date = now();
+				$this->created_date = MySQLi_Helper::datestamp();
+			}
+			
+			// Should this overwrite any set values? Or should it only save if it doesn't already exist?
+			foreach ( $this->additional_save_fields as $field => $value ) {
+				$this_public_vars[ $field ] = $value;
 			}
 
 			foreach ( $this_public_vars as $fieldname => $value ) {
-				if ( ( !empty( $value ) || $value === 0 || is_bool( $value ) ) && $this->original[ $fieldname ] !== $value ) {
-					if ( !is_bool( $value ) ) {
-						$value = '"' . $db->escape_string( $value ) . '"';
-					}
-					elseif ( $value === false ) {
-						$value = 0;
+				if ( $asNew || $this->original[ $fieldname ] !== $value ) {
+					// TODO: Test that this handles integers and decimals ok
+					
+					if ( $value !== 'NULL' ) {
+						if ( is_bool( $value ) ) {
+							$value = ( $value ) ? 1 : 0;
+						}
+						elseif ( !empty( $value ) ) {
+							$value = '"' . $db->escape_string( $value ) . '"';
+						}
 					}
 
 					$insertFields[] = $fieldname;
@@ -202,7 +217,7 @@
 				$result = $db->query( 'DELETE FROM `' . $this->table . '` WHERE id = ' . $this->id );
 			}
 			else {
-				if ( in_array( 'deleted', get_object_public_vars( $this ) ) ) {
+				if ( array_key_exists( 'deleted', get_object_public_vars( $this ) ) ) {
 					$result = $db->query( 'UPDATE `' . $this->table . '` SET deleted = 1 WHERE id = ' . $this->id );
 				}
 				else {
