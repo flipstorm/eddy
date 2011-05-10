@@ -14,12 +14,14 @@
 		public function __construct( $uri = null ) {
 			// TODO: if a $uri is specified, then work out the details for that request
 			$current = self::get_current();
-			$this->fixed = $current[ 'fixed' ];
+			
+			$path = pathinfo( $current[ 'fixed' ] );
+			
 			$this->actual = $current[ 'actual' ];
 			$this->full = $current[ 'full' ];
+			$this->fixed = ( $path[ 'dirname' ] != '.' && $path[ 'dirname' ] ? $path[ 'dirname' ] . '/' : '' ) . ( $path[ 'filename' ] ? $path[ 'filename' ] : 'index' );
 
 			// Take the URL, and do the usual Controller calcs
-			$path = pathinfo( $this->fixed );
 			$this->method = self::rm_cleaner( $path[ 'filename' ] );
 			$this->format = strtolower( $path[ 'extension' ] );
 			$extensions[] = strtolower( $path[ 'extension' ] );

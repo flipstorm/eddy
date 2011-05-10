@@ -2,7 +2,7 @@
 	abstract class EddyController extends EddyBase {
 		protected $data = array();
 		protected $view;
-		protected $skin = 'default';
+		protected $template = 'default';
 		protected $cache = OUTPUT_CACHE_ALL;
 
 		//public $cache_path = OUTPUT_CACHE_PATH_DEFAULT;
@@ -22,7 +22,7 @@
 			}
 			elseif ( Eddy::$request->params ) {
 				// Use the current path without the parameters
-				$viewpath = str_ireplace( Eddy::$request->params, '', Eddy::$request->fixed );
+				$viewpath = str_ireplace( implode( '/', Eddy::$request->params ), '', Eddy::$request->fixed );
 				
 				if ( empty( $viewpath ) ) {
 					$viewpath = Eddy::$request->method;
@@ -45,8 +45,8 @@
 			return $view;
 		}
 		
-		protected function _get_skin() {
-			return $this->skin;
+		protected function _get_template() {
+			return $this->template;
 		}
 
 		protected function _call_error404() {

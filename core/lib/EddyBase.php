@@ -18,4 +18,12 @@
 				return call_user_func_array( array( $this, '_call_' . $name ), $arguments );
 			}
 		}
+		
+		public static function __callStatic( $name, $arguments ) {
+			$class = get_called_class();
+			
+			if ( method_exists( $class, '_call_' . $name ) ) {
+				return call_user_func_array( array( $class, '_call_' . $name ), $arguments );
+			}
+		}
 	}

@@ -3,11 +3,11 @@
 
 	// Set overridable constants here
 	switch ( $host ) {
-		case 'localhost':
+		case 'erika.flipstorm.co.uk':
 			$config = array(
 				// Basic config
 				'DEBUG' => true,
-				'SITE_ROOT' => '/~simonhamp/eddy2.0/public',
+				'SITE_ROOT' => '/eddy2.0/public',
 
 				'ENVIRONMENT' => 'dev',
 				

@@ -5,46 +5,48 @@
 	 */
 	function __autoload ( $class ) {
 		// XXX: There may be unexpected behaviour on case-insensitive filesystems
+		
+		// TODO: Start using namespaces for Helpers and Models - can then unify class loading
+		// This will mean using the nasty \namespace\class syntax, but it will be more future-proof
 
 		if ( strpos( '^' . $class, '^\\Controllers\\' ) !== false || strpos( '^' . $class, '^Controllers\\' ) !== false ) {
 			// This is a controller
 			$isController = true;
 			$classFile = strtolower( str_ireplace( array( '^\\', '^Controllers\\', '\\', '_Controller$' ), array( '^', '', '/', '' ), '^' . $class . '$' ) ) . '.php';
 			
-			if ( file_exists( APP_ROOT . '/' . Eddy::$app_folder . '/controllers/' . $classFile ) ) {
-				include_once( Eddy::$app_folder . '/controllers/' . $classFile );
+			if ( file_exists( APP_ROOT . '/controllers/' . $classFile ) ) {
+				include_once( 'controllers/' . $classFile );
 			}
 		}
 		elseif ( strpos( $class . '$', '_Helper$' ) !== false ) {
 			// This is a helper
 			$classFile = str_ireplace( '_Helper$', '', $class . '$' ) . '.php';
 
-			if ( file_exists( APP_ROOT . '/' . Eddy::$app_folder . '/helpers/' . $classFile ) ) {
-				include_once( Eddy::$app_folder . '/helpers/' . $classFile );
-			}
-			elseif ( file_exists( CORE_ROOT . '/helpers/' . $classFile ) ) {
-				include_once 'helpers/' . $classFile;
-			}
-			else {
-				echo "Helper doesn't exist: '/helpers/$classFile'";
+			if ( file_exists( APP_ROOT . '/helpers/' . $classFile ) || file_exists( CORE_ROOT . '/helpers/' . $classFile ) ) {
+				include_once( 'helpers/' . $classFile );
 			}
 		}
 		else {
 			// This is any other class (including models and core classes)
 
+			// XXX: This is going to be the cause of some possible naming collisions... Models ought to be namespaced
+			
+			$singular = Inflector_Helper::singularize( $class );//FB::info($singular);
+			$plural = Inflector_Helper::pluralize( $class );//FB::info($plural);
 			// See if it's a model first
-			if ( file_exists( APP_ROOT . '/' . Eddy::$app_folder . '/models/' . $class . '.php' ) ) {
-				include_once( Eddy::$app_folder . '/models/' . $class . '.php' );
+			if ( file_exists( APP_ROOT . '/models/' . $plural . '.php' ) ) {
+				include_once( 'models/' . $plural . '.php' );
 			}
+			elseif ( file_exists( APP_ROOT . '/models/' . Inflector_Helper::singularize( $class ) . '.php' ) ) {
+				include_once( 'models/' . Inflector_Helper::singularize( $class ) . '.php' );
+			}
+			
+			// Otherwise, check for a standard lib or extra
 			else {
 				$classFile = str_replace( '_', '/', $class ) . '.php';
 
-				// Override core classes simply by creating a class with the same filename in /app/lib
-				if ( file_exists( APP_ROOT . '/' . Eddy::$app_folder . '/lib/' . $classFile ) ) {
-					include_once( Eddy::$app_folder . '/lib/' . $classFile );
-				}
-				elseif ( file_exists( CORE_ROOT . '/lib/' . $classFile ) ) {
-					include_once 'lib/' . $classFile;
+				if ( file_exists( APP_ROOT . '/lib/' . $classFile ) || file_exists( CORE_ROOT . '/lib/' . $classFile ) ) {
+					include_once( 'lib/' . $classFile );
 				}
 				elseif ( file_exists( CORE_ROOT . '/extras/' . $classFile ) ) {
 					include_once 'extras/' . $classFile;
@@ -87,7 +89,6 @@
 		if ( DEBUG ) {
 			@FB::table( count( EddyDB::$queries ) . ' Queries', array_merge( array( array( 'Query', 'Query Time (s)' ) ), EddyDB::$queries ) );
 
-			//unset( $EddyFC[ 'viewdata' ] );
 			FB::info( Eddy::$request, 'Eddy::$request' );
 			FB::info( Eddy::$controller, 'Eddy::$controller' );
 			FB::info( $_SERVER, '$_SERVER' );

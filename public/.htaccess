@@ -5,5 +5,5 @@ RewriteCond %{REQUEST_FILENAME} -l [OR]
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^.*$ - [NC,L]
 
-RewriteCond %{HTTP_HOST} ^local.*$
-RewriteRule ^.*$ /~simonhamp/eddy2.0/public/index.php [NC,L]
+RewriteCond %{HTTP_HOST} ^erika.*$
+RewriteRule ^.*$ /eddy2.0/public/index.php [NC,L]

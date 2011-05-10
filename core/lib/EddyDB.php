@@ -87,7 +87,7 @@
 				}
 			}
 			else {
-				//FB::error( $query, 'Error in Query: ' . $this->error );
+				FB::error( $query, 'Error in Query: ' . $this->error );
 				//FB::trace( 'Stack Trace' );
 			}
 	

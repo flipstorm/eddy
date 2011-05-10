@@ -3,13 +3,14 @@
 		private static $path_to_core;
 		private static $path_to_app;
 		
-		public static $app_folder = 'app';
 		public static $public_folder = 'public';
 		
 		public static $request;
 		public static $controller;
 		
-		public static function init() {
+		public static function init( $path ) {
+			self::app( $path );
+			
 			self::set_paths();
 			
 			self::config();
@@ -21,7 +22,7 @@
 
 			session_start();
 
-			require_once 'core/functions.php';
+			require_once 'functions.php';
 			
 			FB::setEnabled( DEBUG );
 
@@ -29,17 +30,11 @@
 			
 			if ( !self::get_cached() ) {
 				self::run_action();
-				
-				FB::info( Eddy::$controller );
 				self::render_view();
 			}
 		}
 		
 		private static function set_paths() {
-			if ( !self::$path_to_app ) {
-				self::app();
-			}
-			
 			if ( !self::$path_to_core ) {
 				self::core();
 			}
@@ -47,21 +42,17 @@
 			define( 'APP_ROOT', self::$path_to_app );
 			define( 'CORE_ROOT', self::$path_to_core );
 			define( 'PUBLIC_FOLDER', self::$public_folder );
-			define( 'APP_FOLDER', self::$app_folder );
 
 			$inc_path = array(
 					APP_ROOT,
 					CORE_ROOT,
 					get_include_path()
 				);
+
 			set_include_path( implode( PATH_SEPARATOR, $inc_path ) );
 		}
 		
-		public static function app( $path = null ) {
-			if ( !$path ) {
-				$path = '../';
-			}
-			
+		public static function app( $path ) {			
 			self::$path_to_app = realpath( $path );
 		}
 		
@@ -74,7 +65,7 @@
 		}
 		
 		private static function config() {
-			require_once( self::$app_folder . '/config.php' );
+			require_once( 'config.php' );
 
 			foreach ( $config as $const => $value ) {
 				if ( !defined( $const ) ) {
@@ -176,76 +167,21 @@
 		
 		private static function render_view() {
 			// TODO: Need a response class associated with each format - this is too rigid
+			$format = self::$request->format;
+			$params = array( self::$controller->data, self::$controller->template, self::$controller->view );
 
-			switch ( self::$request->format ) {
-				case 'xml':
-					header( 'Content-Type: text/xml; charset=UTF-8' );
-
-					$data = self::$controller->data;
-
-					if ( !is_array( $EddyFC[ 'viewdata' ] ) ) {
-						header( 'HTTP/1.1 404 Not Found' );
-						exit;
-					}
-
-					$xml = $data[ 'xml' ];
-
-					if ( $xml instanceof SimpleXMLElement ) {
-						echo $xml->asXML();
-					}
-					else {
-						echo $xml;
-					}
-
-					break;
-				case 'json':
-					// Switch content type to application/json
-					header( 'Content-Type: application/json; charset=UTF-8' );
-
-					$data = $EddyFC[ 'viewdata' ];
-
-					if ( !is_array( $EddyFC[ 'viewdata' ] ) ) {
-						header( 'HTTP/1.1 404 Not Found' );
-						exit;
-					}
-
-					if ( $data[ 'json' ] ) {
-						$jsonResponse = $data[ 'json' ];
-					}
-					else {
-						$jsonResponse = @json_encode( $json );
-					}
-
-					// JSONP
-					if ( isset( $_REQUEST[ 'callback' ] ) ) {
-						// Switch content type to application/javascript
-						header( 'Content-Type: application/javascript; charset=UTF-8' );
-						$jsonResponse = $_REQUEST[ 'callback' ] . '(' . $jsonResponse . ');';
-					}
-
-					echo $jsonResponse;
-
-					break;
-				default:
-					EddyView::$skin = self::$controller->skin;
-					EddyView::$view = self::$controller->view;
-					EddyView::$data = extract( self::$controller->data );
-					
-					if ( self::$controller->skin ) {
-						// Load the skin (views will be loaded inside that)
-						EddyView::load_skin();
-					}
-					elseif ( self::$controller->view ) {
-						// Just load a view
-						EddyView::load();
-					}
+			if ( method_exists( 'Response', $format ) ) {
+				call_user_func_array( "Response::$format", $params );
+			}
+			else {
+				call_user_func_array( 'Response::_default', $params );
 			}
 
 			// ### CACHING - CACHE THE CURRENT RESOURCE ###
 			// Write the buffered output to file if we are allowed to
 			if ( self::$controller->cacheable ) {
 				$cache_file = ( self::$controller->cache_file ) ? self::$controller->cache_file . '.cache' : md5( self::$request->full ) . '.cache';
-				$filename = realpath( './app/cache' ) . '/' . $cache_file;
+				$filename = APP_ROOT . '/cache/' . $cache_file;
 				$filedata = ob_get_contents();
 
 				switch ( strtolower( self::$controller->cache_compress ) ) {
@@ -273,4 +209,3 @@
 			}
 		}
 	}
-?>
