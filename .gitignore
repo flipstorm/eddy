@@ -4,5 +4,5 @@ nbproject/project.properties
 nbproject/project.xml
 
 
-/app/includes/config.php
-/public/.htaccess
+/app/
+/public/
