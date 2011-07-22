@@ -17,6 +17,9 @@
 			if ( method_exists( $this, '_call_' . $name ) ) {
 				return call_user_func_array( array( $this, '_call_' . $name ), $arguments );
 			}
+			else {
+				throw new Exception( "You tried to call an object method that doesn't exist" );
+			}
 		}
 		
 		public static function __callStatic( $name, $arguments ) {
@@ -24,6 +27,9 @@
 			
 			if ( method_exists( $class, '_call_' . $name ) ) {
 				return call_user_func_array( array( $class, '_call_' . $name ), $arguments );
+			}
+			else {
+				throw new Exception( "You tried to call a static method that doesn't exist" );
 			}
 		}
 	}

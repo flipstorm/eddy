@@ -37,7 +37,7 @@
 					// Object not cached: Create a new object and cache it
 					$this->isDataBound = $this->findById( $id );
 					
-					self::$cache[ $this->table . $id ] = $this;
+					//self::$cache[ $this->table . $id ] = $this;
 				}
 			}
 		}
@@ -67,7 +67,7 @@
 		}
 
 		final private static function getTableName( $table ) {
-			return strtolower( $table );
+			return strtolower( Inflector_Helper::pluralize( $table ) );
 		}
 
 		/**
@@ -106,11 +106,59 @@
 		 * @return array An array of objects found
 		 */
 		protected static function find( $table, $args = null, $subquery = false ) {
+			//FB::info( get_called_class() );
 			$table = self::getTableName( $table );
 			
 			$query = 'SELECT * FROM `' . $table . '`';
 
-			$query .= ( !empty( $args[ 'WHERE' ] ) ) ? ' WHERE ' . $args[ 'WHERE' ] : '';
+			if ( !empty( $args[ 'WHERE' ] ) ) {
+				$query .= ' WHERE ';
+				
+				if ( is_array( $args[ 'WHERE' ] ) ) {
+					$first = true;
+					
+					foreach( $args[ 'WHERE' ] as $field => $value ) {
+						if ( !$first ) {
+							if ( preg_match( '/^[\|\|].+/', $field ) ) {
+								$field = preg_replace( '/^\|\|/', '', $field );
+								$query .= ' OR ';
+							}
+							else {
+								$query .= ' AND ';
+							}
+						}
+						
+						$comparison = '=';
+						
+						if ( preg_match( '/^(>=|<=|<|>|!=)/', $value, $comparisons ) ) {
+							$comparison = $comparisons[1];
+							$value = preg_replace( '/^' . $comparison . '/', '', $value );
+						}
+						
+						if( is_null( $value ) || $value == 'NULL' ) {
+							$value = 'NULL';
+							
+							$comparison = 'IS';
+							
+							if ( $comparison == '!=' ) {
+								$comparsion .= ' NOT';
+							}
+						}
+						elseif ( is_string( $value ) ) {
+							$value = '"' . EddyDB::esc_str( $value ) . '"';
+						}
+						
+						$query .= '`' . $field . '` ' . $comparison . ' ' . $value;
+						
+						$first = false;
+					}
+				}
+				else {
+					// DEPRECATED: Where clauses as a string should be phased out?
+					$query .= $args[ 'WHERE' ];
+				}
+			}
+			
 			$order_by = ( !empty( $args[ 'ORDERBY' ] ) ) ? ' ORDER BY ' . $args[ 'ORDERBY' ] : '';
 			$limit = ( !empty( $args[ 'LIMIT' ] ) ) ? ' LIMIT ' . $args[ 'LIMIT' ] : '';
 			$group_by = ( !empty( $args[ 'GROUPBY' ] ) ) ? ' GROUP BY ' . $args[ 'GROUPBY' ] : '';
@@ -142,7 +190,7 @@
 		 * @param bool $asNew Set to true to save this data in a new record (force INSERT)
 		 * @return mysqli_result Query result object
 		 */
-		public function save( $asNew = false ) {
+		public function save( $asNew = false, $force = false ) {
 			$db = EddyDB::getInstance();
 	
 			if ( !isset( $this->id ) ) {
@@ -152,9 +200,9 @@
 			$this_public_vars = get_object_public_vars( $this );
 
 			// XXX: This isn't such a good idea!
-			if ( array_key_exists( 'created_date', $this_public_vars ) ) {
-				$this->created_date = MySQLi_Helper::datestamp();
-			}
+			//if ( array_key_exists( 'created_date', $this_public_vars ) ) {
+			//	$this->created_date = MySQLi_Helper::datestamp();
+			//}
 			
 			// Should this overwrite any set values? Or should it only save if it doesn't already exist?
 			foreach ( $this->additional_save_fields as $field => $value ) {
@@ -162,14 +210,18 @@
 			}
 
 			foreach ( $this_public_vars as $fieldname => $value ) {
-				if ( $asNew || $this->original[ $fieldname ] !== $value ) {
+				if ( ( $force && !is_null( $value ) ) || $this->original[ $fieldname ] !== $value || ( $asNew && !is_null( $value ) ) ) {
 					// TODO: Test that this handles integers and decimals ok
+					
+					if ( $this->original[ $fieldname ] !== $value && is_null( $value ) ) {
+						$value = 'NULL';
+					}
 					
 					if ( $value !== 'NULL' ) {
 						if ( is_bool( $value ) ) {
 							$value = ( $value ) ? 1 : 0;
 						}
-						elseif ( !empty( $value ) ) {
+						elseif ( is_string( $value ) ) {
 							$value = '"' . $db->escape_string( $value ) . '"';
 						}
 					}

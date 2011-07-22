@@ -65,7 +65,7 @@
 		}
 		
 		private static function config() {
-			require_once( 'config.php' );
+			require_once 'config.php';
 
 			foreach ( $config as $const => $value ) {
 				if ( !defined( $const ) ) {

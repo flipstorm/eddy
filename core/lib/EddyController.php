@@ -4,6 +4,7 @@
 		protected $view;
 		protected $template = 'default';
 		protected $cache = OUTPUT_CACHE_ALL;
+		protected $args;
 
 		//public $cache_path = OUTPUT_CACHE_PATH_DEFAULT;
 		public $cache_compress = OUTPUT_CACHE_COMPRESS_DEFAULT;

@@ -31,26 +31,42 @@
 
 			// XXX: This is going to be the cause of some possible naming collisions... Models ought to be namespaced
 			
-			$singular = Inflector_Helper::singularize( $class );//FB::info($singular);
-			$plural = Inflector_Helper::pluralize( $class );//FB::info($plural);
+			$singular = Inflector_Helper::singularize( $class );
+			$plural = Inflector_Helper::pluralize( $class );
+			
 			// See if it's a model first
 			if ( file_exists( APP_ROOT . '/models/' . $plural . '.php' ) ) {
 				include_once( 'models/' . $plural . '.php' );
+				
+				$is_plural = true;
 			}
-			elseif ( file_exists( APP_ROOT . '/models/' . Inflector_Helper::singularize( $class ) . '.php' ) ) {
-				include_once( 'models/' . Inflector_Helper::singularize( $class ) . '.php' );
+			elseif ( file_exists( APP_ROOT . '/models/' . $singular . '.php' ) ) {
+				include_once( 'models/' . $singular . '.php' );
 			}
 			
 			// Otherwise, check for a standard lib or extra
 			else {
 				$classFile = str_replace( '_', '/', $class ) . '.php';
+				$pluralFile = str_replace( '_', '/', $plural ) . '.php';
+				$singularFile = str_replace( '_', '/', $singular ) . '.php';
 
-				if ( file_exists( APP_ROOT . '/lib/' . $classFile ) || file_exists( CORE_ROOT . '/lib/' . $classFile ) ) {
-					include_once( 'lib/' . $classFile );
+				if ( file_exists( APP_ROOT . '/lib/' . $pluralFile ) || file_exists( CORE_ROOT . '/lib/' . $pluralFile ) ) {
+					include_once( 'lib/' . $pluralFile );
+					
+					$is_plural = true;
 				}
+				elseif ( file_exists( APP_ROOT . '/lib/' . $singularFile ) || file_exists( CORE_ROOT . '/lib/' . $singularFile ) ) {
+					include_once( 'lib/' . $singularFile );
+				}
+				// XXX: Consider removing extras... just have it as a repository?
 				elseif ( file_exists( CORE_ROOT . '/extras/' . $classFile ) ) {
-					include_once 'extras/' . $classFile;
+					include_once( 'extras/' . $classFile );
 				}
+			}
+			
+			// Create a dynamic subclass for plural/singular class names
+			if ( $class == $singular && $is_plural ) {
+				eval( 'class ' . $singular . ' extends ' . $plural . ' {}' );
 			}
 		}
 

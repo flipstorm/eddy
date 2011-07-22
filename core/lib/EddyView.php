@@ -2,8 +2,11 @@
 	class EddyView extends EddyBase {
 		public static $data;
 
-		public static function load_partial( $path ) {
-			if ( is_array( self::$data ) ) {
+		public static function load_partial( $path, $data = null ) {
+			if ( is_array( $data ) ) {
+				extract( $data );
+			}
+			elseif ( is_array( self::$data ) ) {
 				extract( self::$data );
 			}
 
@@ -18,8 +21,11 @@
 			}
 		}
 
-		public static function load_template( $template ) {
-			if ( is_array( self::$data ) ) {
+		public static function load_template( $template, $data = null ) {
+			if ( is_array( $data ) ) {
+				extract( $data );
+			}
+			elseif ( is_array( self::$data ) ) {
 				extract( self::$data );
 			}
 			
@@ -34,8 +40,11 @@
 			}
 		}
 
-		public static function load( $view = null ) {
-			if ( is_array( self::$data ) ) {
+		public static function load( $view = null, $data = null ) {
+			if ( is_array( $data ) ) {
+				extract( $data );
+			}
+			elseif ( is_array( self::$data ) ) {
 				extract( self::$data );
 			}
 			
@@ -52,7 +61,5 @@
 			elseif ( DEBUG ) {
 				echo "{View doesn't exist: $view_file}";
 			}
-			
-			self::test();
 		}
 	}

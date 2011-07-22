@@ -3,27 +3,23 @@
 		public static function xml( $data ) {
 			header( 'Content-Type: text/xml; charset=UTF-8' );
 
-			if ( !is_array( $data ) ) {
+			if ( !is_array( $data[ 'xml' ] ) ) {
 				header( 'HTTP/1.1 404 Not Found' );
 				exit;
 			}
 
-			if ( $data[ 'xml' ] ) {
-				echo $data[ 'xml' ];
-			}
+			echo $data[ 'xml' ];
 		}
 		
 		public static function json( $data ) {
 			header( 'Content-Type: application/json; charset=UTF-8' );
 
-			if ( !is_array( $data ) ) {
+			if ( !is_array( $data[ 'json' ] ) ) {
 				header( 'HTTP/1.1 404 Not Found' );
 				exit;
 			}
 
-			if ( $data[ 'json' ] ) {
-				$jsonResponse = $data[ 'json' ];
-			}
+			$jsonResponse = json_encode( $data[ 'json' ] );
 
 			// JSONP
 			if ( isset( $_REQUEST[ 'callback' ] ) ) {
