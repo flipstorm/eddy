@@ -166,7 +166,6 @@
 		}
 		
 		private static function render_view() {
-			// TODO: Need a response class associated with each format - this is too rigid
 			$format = self::$request->format;
 			$params = array( self::$controller->data, self::$controller->template, self::$controller->view );
 

@@ -109,7 +109,7 @@
 		}
 
 		protected function _get_cacheable() {
-			if ( strtoupper( $_SERVER[ 'REQUEST_METHOD' ] ) != 'POST' && OUTPUT_CACHE_ENABLED ) {
+			if ( strtoupper( $_SERVER[ 'REQUEST_METHOD' ] ) != 'POST' && defined( 'OUTPUT_CACHE_ENABLED' ) && OUTPUT_CACHE_ENABLED ) {
 				return $this->cache;
 			}
 			

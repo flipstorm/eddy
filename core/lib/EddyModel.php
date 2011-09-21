@@ -98,6 +98,16 @@
 	
 			return false;
 		}
+		
+		// Super function to self::find that saves having to write a 'find' method in each model
+		public static function get( $args = null, $table = null ) {
+			FB::info( get_called_class() );
+			if ( !$table ) {
+				$table = get_called_class();
+			}
+
+			return self::find( $table, $args );
+		}
 
 		/**
 		 * Perform a basic search query
@@ -105,10 +115,12 @@
 		 * @param array $args The clauses to use in the query (valid keys: WHERE, ORDERBY, LIMIT, GROUPBY)
 		 * @return array An array of objects found
 		 */
-		protected static function find( $table, $args = null, $subquery = false ) {
-			//FB::info( get_called_class() );
+		protected static function find( $table = null, $args = null, $subquery = false ) {
 			$table = self::getTableName( $table );
 			
+			// Uppercase all keys in the args
+			$args = array_change_key_case( $args, CASE_UPPER );
+
 			$query = 'SELECT * FROM `' . $table . '`';
 
 			if ( !empty( $args[ 'WHERE' ] ) ) {
