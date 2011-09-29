@@ -215,8 +215,9 @@
 			//if ( array_key_exists( 'created_date', $this_public_vars ) ) {
 			//	$this->created_date = MySQLi_Helper::datestamp();
 			//}
-			
+
 			// Should this overwrite any set values? Or should it only save if it doesn't already exist?
+			// Or should we enforce properties that we want to save should be public?
 			foreach ( $this->additional_save_fields as $field => $value ) {
 				$this_public_vars[ $field ] = $value;
 			}
@@ -243,13 +244,14 @@
 					$updateValues[] = $fieldname . ' = ' . $value;
 				}
 			}
-	
-			if ( $asNew ) {
+
+			if ( !$this->isDataBound || $asNew ) {
 				$result = $db->query( 'INSERT INTO `' . $this->table . '` ( ' . implode( ',', $insertFields ) . ' )
 					VALUES ( ' . implode( ',', $insertValues ) . ' )' );
-			
+
 				$this->id = EddyDB::$insertId;
 				$this->_id = $this->id;
+				$this->isDataBound = true;
 			}
 			elseif ( !empty( $updateValues ) ) {
 				$result = $db->query( 'UPDATE `' . $this->table . '`
@@ -317,5 +319,11 @@
 
 		protected function add_data( $field, $value ) {
 			$this->additional_save_fields[ $field ] = $value;
+		}
+
+		public function __clone() {
+			$this->id = null;
+			$this->_id = null;
+			$this->isDataBound = false;
 		}
 	}
