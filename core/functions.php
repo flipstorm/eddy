@@ -9,6 +9,7 @@
 		// TODO: Start using namespaces for Helpers and Models - can then unify class loading
 		// This will mean using the nasty \namespace\class syntax, but it will be more future-proof
 
+		$isController = false;
 		if ( strpos( '^' . $class, '^\\Controllers\\' ) !== false || strpos( '^' . $class, '^Controllers\\' ) !== false ) {
 			// This is a controller
 			$isController = true;
