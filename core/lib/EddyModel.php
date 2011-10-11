@@ -115,7 +115,7 @@
 		 * @param array $args The clauses to use in the query (valid keys: WHERE, ORDERBY, LIMIT, GROUPBY)
 		 * @return array An array of objects found
 		 */
-		protected static function find( $table = null, $args = null, $subquery = false ) {
+		protected static function find( $table = null, $args = array(), $subquery = false ) {
 			$table = self::getTableName( $table );
 			
 			// Uppercase all keys in the args
@@ -146,6 +146,11 @@
 							$comparison = $comparisons[1];
 							$value = preg_replace( '/^' . $comparison . '/', '', $value );
 						}
+
+						if ( preg_match( '/^IN\((.+)\)/', $value, $set ) ) {
+							$value = $set[1];
+							$in_set = true;
+						}
 						
 						if( is_null( $value ) || $value == 'NULL' ) {
 							$value = 'NULL';
@@ -153,11 +158,22 @@
 							$comparison = 'IS';
 							
 							if ( $comparison == '!=' ) {
-								$comparsion .= ' NOT';
+								$comparison .= ' NOT';
 							}
 						}
-						elseif ( is_string( $value ) ) {
+						elseif ( is_string( $value ) && !$in_set ) {
 							$value = '"' . EddyDB::esc_str( $value ) . '"';
+						}
+						elseif ( $in_set ) {
+							// Set items must look like: 1,2,3,4,5,6
+							foreach ( explode( ',', $value ) as $item ) {
+								$values[] = EddyDB::esc_str( $item );
+							}
+
+							$value = implode( ', ', $values );
+
+							$comparison = 'IN (';
+							$value .= ' )';
 						}
 						
 						$query .= '`' . $field . '` ' . $comparison . ' ' . $value;

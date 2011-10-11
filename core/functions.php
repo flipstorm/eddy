@@ -36,7 +36,10 @@
 			$plural = Inflector_Helper::pluralize( $class );
 			
 			// See if it's a model first
-			if ( file_exists( APP_ROOT . '/models/' . $plural . '.php' ) ) {
+			if ( file_exists( APP_ROOT . '/models/' . $class . '.php' ) ) {
+				include_once( 'models/' . $class . '.php' );
+			}
+			elseif ( file_exists( APP_ROOT . '/models/' . $plural . '.php' ) ) {
 				include_once( 'models/' . $plural . '.php' );
 				
 				$is_plural = true;
