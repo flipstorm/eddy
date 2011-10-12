@@ -10,6 +10,8 @@
 		private $original;
 		private $additional_save_fields = array();
 		
+		protected static $db_table;
+		
 		public $_id;
 
 		/**
@@ -67,7 +69,14 @@
 		}
 
 		final private static function getTableName( $table ) {
-			return strtolower( Inflector_Helper::pluralize( $table ) );
+			if ( static::$db_table ) {
+				$table = static::$db_table;
+			}
+			else {
+				$table = strtolower( Inflector_Helper::pluralize( $table ) );
+			}
+			
+			return $table;
 		}
 
 		/**
@@ -100,11 +109,8 @@
 		}
 		
 		// Super function to self::find that saves having to write a 'find' method in each model
-		public static function get( $args = null, $table = null ) {
-			FB::info( get_called_class() );
-			if ( !$table ) {
-				$table = get_called_class();
-			}
+		public static function get( $args = array() ) {
+			$table = self::getTableName( get_called_class() );
 
 			return self::find( $table, $args );
 		}
