@@ -9,7 +9,7 @@
 		
 		public function __set( $name, $value ) {
 			if ( method_exists( $this, '_set_' . $name ) ) {
-				return call_user_func( array( $this, '_set_' . $name ), $value );
+				call_user_func( array( $this, '_set_' . $name ), $value );
 			}
 		}
 

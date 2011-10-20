@@ -5,12 +5,11 @@
 
 		// This is a bit unsafe and could potentially eat up memory
 		protected static $cache = array();
+		protected static $db_table;
+		protected $table;
 		
-		private $table;
 		private $original;
 		private $additional_save_fields = array();
-		
-		protected static $db_table;
 		
 		public $_id;
 
