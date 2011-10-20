@@ -135,6 +135,8 @@
 					$first = true;
 					
 					foreach( $args[ 'WHERE' ] as $field => $value ) {
+						$in_set = false;
+						
 						if ( !$first ) {
 							if ( preg_match( '/^[\|\|].+/', $field ) ) {
 								$field = preg_replace( '/^\|\|/', '', $field );
