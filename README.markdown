@@ -1,19 +1,16 @@
-eddy
-A lightweight, MVC, PHP 5.3 Web Application Framework
+# eddy - Your Web App Sidekick
 
-** Requirements & Prerequisites
-PHP 5.3
-Apache with mod_rewrite
-MySQL
-Linux OS preferred
+## What You'll Need
+A web server running PHP 5.3. A good grasp of PHP 5.3
 
-** Setup
-Clone into a new folder. Point a <VirtualHost> at the /public folder.
-Copy /app/includes/sample.config.php and rename to config.php
-and don't forget to change the RewriteBase in /public/.htaccess
+## Startup
+Fork. Clone. Then get [eddy_app](http://github.com/flipstorm/eddy_app)
 
-** License
-Copyright (c) 2010 FlipStorm, Simon Hamp (simon@flipstorm.co.uk)
+## Who?
+This was built by [Simon](http://twitter.com/simonhamp) originally, but is now maintained by [Flipstorm](http://flipstorm.co.uk/).
+
+### License
+Copyright (c) 2011 Flipstorm
 
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
@@ -35,4 +32,4 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 
 
-"and then you will eat cake"
+> "and then you will eat cake"
