@@ -17,17 +17,19 @@
 		}
 	
 		public static function route( $uri ) {
-			// Is there a literal match?
-			if ( isset( static::$routes[ $uri ] ) ) {
-				return static::$routes[ $uri ];
-			}
-
+			$qs = '';
+			
 			if ( self::$allow_query && strpos( $uri, '?' ) !== false ) {
 				// Break the query string off and attach later
 				$qs = '?' . parse_url( $uri, PHP_URL_QUERY );
 				$uri = str_replace( $qs, '', $uri );
 			}
 			
+			// Is there a literal match?
+			if ( isset( static::$routes[ $uri ] ) ) {
+				return static::$routes[ $uri ] . $qs;
+			}
+
 			// Loop through the route array looking for wild-cards
 			foreach ( self::$routes as $key => $val) {
 				// Convert wild-cards to RegEx
