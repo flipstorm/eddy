@@ -18,7 +18,7 @@
 			
 			$path = pathinfo( $uri[ 'fixed' ] );
 			
-			$this->original = $path[ 'original' ];
+			$this->original = $uri[ 'original' ];
 			$this->actual = $uri[ 'actual' ];
 			$this->full = $uri[ 'full' ];
 			$this->fixed = ( $path[ 'dirname' ] != '.' && $path[ 'dirname' ] ? $path[ 'dirname' ] . '/' : '' ) . ( $path[ 'filename' ] ? $path[ 'filename' ] : 'index' );
@@ -78,8 +78,8 @@
 			}
 
 			// Waiting for Routes to support query strings
-			$request[ 'original' ] = $requestURI;
-			$request[ 'full' ] = Routes::route( str_replace( '^' . str_replace( 'index.php', '', $_SERVER[ 'PHP_SELF' ] ), '', '^' . $requestURI ) );
+			$request[ 'original' ] = str_replace( '^' . str_replace( 'index.php', '', $_SERVER[ 'PHP_SELF' ] ), '', '^' . $requestURI );
+			$request[ 'full' ] = Routes::route( $request[ 'original' ] );
 			$request[ 'actual' ] = Routes::route( str_replace( '?' . $_SERVER[ 'QUERY_STRING' ], '', $request[ 'full' ] ) );
 
 			$request_rev = strrev( $request[ 'actual' ] );

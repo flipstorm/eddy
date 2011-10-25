@@ -22,7 +22,7 @@
 				return static::$routes[ $uri ];
 			}
 
-			if ( self::$allow_query ) {
+			if ( self::$allow_query && strpos( $uri, '?' ) !== false ) {
 				// Break the query string off and attach later
 				$qs = '?' . parse_url( $uri, PHP_URL_QUERY );
 				$uri = str_replace( $qs, '', $uri );
