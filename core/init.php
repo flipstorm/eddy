@@ -1,10 +1,11 @@
 <?php
-	class Eddy {
+	final class Eddy {
 		private static $path_to_core;
 		private static $path_to_app;
 		
 		public static $public_folder = 'public';
-		
+
+		public static $routes;
 		public static $request;
 		public static $controller;
 		
@@ -25,6 +26,7 @@
 			require_once 'functions.php';
 			
 			FB::setEnabled( DEBUG );
+			Routes::add( self::$routes );
 
 			self::$request = new EddyRequest();
 			
@@ -116,7 +118,7 @@
 					self::$request->path = str_replace( self::$request->method . '$', '', self::$request->path . '$' );
 				}
 			}
-			elseif ( method_exists( self::$request->controller, 'index' ) ) {
+			elseif ( method_exists( self::$request->controller, 'index' ) && defined( 'NO_404' ) && NO_404 ) {
 				self::$request->method = 'index';
 				$params = trim( str_replace( '^' . self::$request->controller_filename . '/', '', '^' . self::$request->actual ), '/^' );
 			}

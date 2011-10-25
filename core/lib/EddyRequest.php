@@ -8,17 +8,19 @@
 		public $format;
 		public $full;
 		public $method;
+		public $original;
 		public $params;
 		public $path;
 		
 		public function __construct( $uri = null ) {
 			// TODO: if a $uri is specified, then work out the details for that request
-			$current = self::get_current();
+			$uri = self::get_current();
 			
-			$path = pathinfo( $current[ 'fixed' ] );
+			$path = pathinfo( $uri[ 'fixed' ] );
 			
-			$this->actual = $current[ 'actual' ];
-			$this->full = $current[ 'full' ];
+			$this->original = $path[ 'original' ];
+			$this->actual = $uri[ 'actual' ];
+			$this->full = $uri[ 'full' ];
 			$this->fixed = ( $path[ 'dirname' ] != '.' && $path[ 'dirname' ] ? $path[ 'dirname' ] . '/' : '' ) . ( $path[ 'filename' ] ? $path[ 'filename' ] : 'index' );
 
 			// Take the URL, and do the usual Controller calcs
@@ -64,8 +66,6 @@
 			// Finish controller naming
 			$this->controller_filename = strtolower( str_replace( array( '\\Controllers\\', '\\' ), array( '', '/' ), $controllerName ) );
 			$this->controller = $controllerName . '_Controller';
-
-			return $return;
 		}
 		
 		public static function get_current() {
@@ -77,8 +77,10 @@
 				$requestURI = $_SERVER[ 'REQUEST_URI' ];
 			}
 
-			$request[ 'full' ] = str_replace( '^' . str_replace( 'index.php', '', $_SERVER[ 'PHP_SELF' ] ), '', '^' . $requestURI );
-			$request[ 'actual' ] = str_replace( '?' . $_SERVER[ 'QUERY_STRING' ], '', $request[ 'full' ] );
+			// Waiting for Routes to support query strings
+			$request[ 'original' ] = $requestURI;
+			$request[ 'full' ] = Routes::route( str_replace( '^' . str_replace( 'index.php', '', $_SERVER[ 'PHP_SELF' ] ), '', '^' . $requestURI ) );
+			$request[ 'actual' ] = Routes::route( str_replace( '?' . $_SERVER[ 'QUERY_STRING' ], '', $request[ 'full' ] ) );
 
 			$request_rev = strrev( $request[ 'actual' ] );
 
