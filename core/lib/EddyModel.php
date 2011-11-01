@@ -68,6 +68,8 @@
 		}
 
 		final private static function getTableName( $table ) {
+			$table = strtolower( str_ireplace( array( '^\\', '^Models\\', '\\', '^' ), array( '^', '', '_', '' ), '^' . $table) );
+			
 			if ( static::$db_table ) {
 				$table = static::$db_table;
 			}

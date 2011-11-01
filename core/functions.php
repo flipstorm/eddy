@@ -19,6 +19,28 @@
 				include_once( 'controllers/' . $classFile );
 			}
 		}
+		elseif  ( strpos( '^' . $class, '^\\Models\\' ) !== false || strpos( '^' . $class, '^Models\\' ) !== false ) {
+			
+			$classFile = strtolower( str_ireplace( array( '^\\', '^Models\\', '\\' ), array( '^', '', '/' ), '^' . $class) );
+			
+			$singular = Inflector_Helper::singularize( $classFile );
+			$plural = Inflector_Helper::pluralize( $classFile );
+			
+			// See if it's a model first
+			if ( file_exists( APP_ROOT . '/models/' . $classFile .'.php' ) ) {
+				include_once( 'models/' . $classFile .'.php');
+			}
+			elseif ( file_exists( APP_ROOT . '/models/' . $plural .'.php' ) ) {
+				include_once( 'models/' . $plural .'.php');
+				
+				$is_plural = true;
+			}
+			elseif ( file_exists( APP_ROOT . '/models/' . $singular .'.php' ) ) {
+				include_once( 'models/' . $singular .'.php' );
+			} else {
+				call_user_func(DYNAMIC_MODEL_CALLBACK, $classFile);
+			}
+		}
 		elseif ( strpos( $class . '$', '_Helper$' ) !== false ) {
 			// This is a helper
 			$classFile = str_ireplace( '_Helper$', '', $class . '$' ) . '.php';
