@@ -20,8 +20,7 @@
 			}
 		}
 		elseif  ( strpos( '^' . $class, '^\\Models\\' ) !== false || strpos( '^' . $class, '^Models\\' ) !== false ) {
-			
-			$classFile = strtolower( str_ireplace( array( '^\\', '^Models\\', '\\' ), array( '^', '', '/' ), '^' . $class) );
+			$classFile =  str_ireplace( array( '^\\', '^Models\\', '\\' ), array( '^', '', '/' ), '^' . $class) ;
 			
 			$singular = Inflector_Helper::singularize( $classFile );
 			$plural = Inflector_Helper::pluralize( $classFile );

@@ -214,7 +214,7 @@
 			$result = EddyDB::q( $query );
 	
 			if ( $result->num_rows > 0 ) {
-				while ( $row = $result->fetch_object( $table ) ) {
+				while ( $row = $result->fetch_object( "\\Models\\". $table ) ) {
 					$rows[] = $row;
 				}
 			}
