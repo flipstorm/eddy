@@ -80,7 +80,7 @@
 			// Waiting for Routes to support query strings
 			$request[ 'original' ] = str_replace( '^' . str_replace( 'index.php', '', $_SERVER[ 'PHP_SELF' ] ), '', '^' . $requestURI );
 			$request[ 'full' ] = Routes::route( $request[ 'original' ] );
-			$request[ 'actual' ] = Routes::route( str_replace( '?' . $_SERVER[ 'QUERY_STRING' ], '', $request[ 'full' ] ) );
+			$request[ 'actual' ] = Routes::route( str_replace( '?' . $_SERVER[ 'QUERY_STRING' ], '', $request[ 'original' ] ) );
 
 			$request_rev = strrev( $request[ 'actual' ] );
 
