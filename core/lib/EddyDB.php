@@ -93,6 +93,17 @@
 	
 			return $result;
 		}
+		
+		public static function q_into_array($query) {
+			$result = self::q($query);
+			
+			$return = array();
+			while ( $row = $result->fetch_object() ) {
+				$return[] = $row;
+			}
+			
+			return $return;
+		}
 
 		public static function get_value( $query ) {
 			$result = self::q( $query );
