@@ -108,11 +108,13 @@
 			// Determine if the desired method exists, fallback on index and if that doesn't exist, give up
 
 			if ( method_exists( self::$request->controller, self::$request->method ) ) {
-				$strstr = stristr( self::$request->fixed, self::$request->method . '/' );
-
-				if ( $strstr ) {
-					$params = str_replace( '^' . self::$request->method . '/', '', '^' . $strstr );
-				}
+				$strstr = explode("/", self::$request->fixed);
+				$strstr = array_reverse($strstr);
+				$strstr = implode("/", $strstr);
+				$strstr = stristr( $strstr, '/'.self::$request->method  , true );
+				$strstr = explode("/", $strstr);
+				$strstr = array_reverse($strstr);
+				$params = implode("/", $strstr);
 
 				if ( strpos( self::$request->path . '$', self::$request->method . '$' ) !== false ) {
 					self::$request->path = str_replace( self::$request->method . '$', '', self::$request->path . '$' );
