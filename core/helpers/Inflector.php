@@ -1,4 +1,6 @@
 <?php
+	namespace Helpers;
+	
 	// Adapted from http://kuwamoto.org/2007/12/17/improved-pluralizing-in-php-actionscript-and-ror/
 
 	// Thanks to http://www.eval.ca/articles/php-pluralize (MIT license)
@@ -28,7 +30,7 @@
 	//   Added rule for potato -> potatoes
 	//   Added rule for *us -> *uses
 
-	class Inflector_Helper {
+	class Inflector {
 		static $plural = array(
 			'/(quiz)$/i'               => "$1zes",
 			'/^(ox)$/i'                => "$1en",

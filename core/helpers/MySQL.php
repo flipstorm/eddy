@@ -1,5 +1,7 @@
 <?php
-	class MySQL_Helper {
+	namespace Helpers;
+	
+	class MySQL {
 		public static function buildSqlOrderBy( $column, $direction = 'ASC' ) {
 			if ( !empty( $column ) ) {
 				return EddyDB::esc_str( $column . ' ' . strtoupper( $direction ) );
@@ -51,6 +53,6 @@
 				$order = self::getOppositeOrderBy( $var );
 			}
 
-			return URI_Helper::amend_qs( array( $getOrderByParam => $var, $getOrderParam => $order ) );
+			return URI::amend_qs( array( $getOrderByParam => $var, $getOrderParam => $order ) );
 		}
 	}

@@ -103,9 +103,11 @@
 		protected function security( $barrel, $key, $redirect = '/login' ) {
 			$unlocked = call_user_func( $barrel, $key );
 
-			if ( !$unlocked ) {
+			if ( !$unlocked && $redirect !== false ) {
 				$this->redirect( $redirect, true );
 			}
+			
+			return $unlocked;
 		}
 
 		protected function _get_cacheable() {

@@ -13,6 +13,7 @@
 			}
 		}
 
+		// XXX: When are we ever using these?
 		public function __call( $name, $arguments ) {
 			if ( method_exists( $this, '_call_' . $name ) ) {
 				return call_user_func_array( array( $this, '_call_' . $name ), $arguments );

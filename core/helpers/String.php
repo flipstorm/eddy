@@ -1,5 +1,7 @@
 <?php
-	class String_Helper {
+	namespace Helpers;
+	
+	class String {
 		public static function explode_with_keys( $separator, $string ) {
 			$array = explode( $separator, $string );
 

@@ -14,6 +14,8 @@
 			
 			self::set_paths();
 			
+			self::setup();
+			
 			self::config();
 			
 			if ( DEBUG ) {
@@ -31,8 +33,13 @@
 			self::$request = new EddyRequest();
 			
 			if ( !self::get_cached() ) {
+				$start = microtime(true);
 				self::run_action();
+				FB::info( microtime(true) - $start, 'Run Action' );
+				
+				$start = microtime(true);
 				self::render_view();
+				FB::info( microtime(true) - $start, 'Render View' );
 			}
 		}
 		
@@ -64,6 +71,147 @@
 			}
 			
 			self::$path_to_core = realpath( $path );
+		}
+		
+		private static function setup() {
+			spl_autoload_register(function( $class ) {
+				// XXX: There may be unexpected behaviour on case-insensitive filesystems
+
+				// TODO: Start using namespaces for Helpers and Models - can then unify class loading
+				// This will mean using the nasty \namespace\class syntax, but it will be more future-proof
+
+				$isController = false;
+				if ( strpos( '^' . $class, '^\\Controllers\\' ) !== false || strpos( '^' . $class, '^Controllers\\' ) !== false ) {
+					// This is a controller
+					$isController = true;
+					$classFile = strtolower( str_ireplace( array( '^\\', '^Controllers\\', '\\', '_Controller$' ), array( '^', '', '/', '' ), '^' . $class . '$' ) ) . '.php';
+					@include_once( 'controllers/' . $classFile );
+				}
+				elseif  ( strpos( '^' . $class, '^\\Models\\' ) !== false || strpos( '^' . $class, '^Models\\' ) !== false ) {
+					$classFile =  str_ireplace( array( '^\\', '^Models\\', '\\' ), array( '^', '', '/' ), '^' . $class) ;
+
+					$classPI = pathinfo( $classFile );
+					$classPath = $classPI[ 'dirname' ];
+					$singular = \Helpers\Inflector::singularize( $classPI[ 'filename' ] );
+					$plural = \Helpers\Inflector::pluralize( $classPI[ 'filename' ] );
+
+					// See if it's a model first
+					if ( file_exists( APP_ROOT . '/models/' . $classFile .'.php' ) ) {
+						include_once( 'models/' . $classFile .'.php');
+					}
+					elseif ( file_exists( APP_ROOT . '/models/' . $classPath . '/' . $plural .'.php' ) ) {
+						include_once( 'models/' . $classPath . '/' . $plural .'.php');
+
+						$is_plural = true;
+					}
+					elseif ( file_exists( APP_ROOT . '/models/' . $classPath . '/' . $singular .'.php' ) ) {
+						include_once( 'models/' . $classPath . '/' . $singular .'.php' );
+					}
+				}
+				elseif ( strpos( '^' . $class, '^\\Helpers\\' ) !== false || strpos( '^' . $class, '^Helpers\\' ) !== false ) {
+					// TODO: Helpers can go into /lib/helpers/ when namespacing works
+					// This is a helper
+
+					$classFile = str_ireplace( array( '^\\', '^Helpers\\', '\\' ), array( '^', '', '/' ), '^' . $class ) . '.php';
+					@include_once( 'helpers/' . $classFile );
+				}
+				else {
+					// This is any other class (including models and core classes)
+
+					// XXX: This is going to be the cause of some possible naming collisions... Models ought to be namespaced
+
+					$singular = \Helpers\Inflector::singularize( $class );
+					$plural = \Helpers\Inflector::pluralize( $class );
+
+					// Old model code DEPRECATED
+					if ( file_exists( APP_ROOT . '/models/' . $class . '.php' ) ) {
+						include_once( 'models/' . $class . '.php' );
+					}
+					elseif ( file_exists( APP_ROOT . '/models/' . $plural . '.php' ) ) {
+						include_once( 'models/' . $plural . '.php' );
+
+						$is_plural = true;
+					}
+					elseif ( file_exists( APP_ROOT . '/models/' . $singular . '.php' ) ) {
+						include_once( 'models/' . $singular . '.php' );
+					}
+
+					// Otherwise, check for a standard lib or extra
+					else {
+						// TODO: Allow for namespaces here too!
+						$classFile = str_replace( '_', '/', $class ) . '.php';
+						$pluralFile = str_replace( '_', '/', $plural ) . '.php';
+						$singularFile = str_replace( '_', '/', $singular ) . '.php';
+
+						if ( file_exists( APP_ROOT . '/lib/' . $pluralFile ) || file_exists( CORE_ROOT . '/lib/' . $pluralFile ) ) {
+							include_once( 'lib/' . $pluralFile );
+
+							$is_plural = true;
+						}
+						elseif ( file_exists( APP_ROOT . '/lib/' . $singularFile ) || file_exists( CORE_ROOT . '/lib/' . $singularFile ) ) {
+							include_once( 'lib/' . $singularFile );
+						}
+						// XXX: Consider removing extras... just have it as a repository?
+						elseif ( file_exists( CORE_ROOT . '/extras/' . $classFile ) ) {
+							include_once( 'extras/' . $classFile );
+						}
+					}
+				}
+
+				// Create a dynamic subclass for plural/singular class names
+				if ( $class == $singular && $is_plural ) {
+					eval( 'class ' . $singular . ' extends ' . $plural . ' {}' );
+				}
+
+				// These are non-crucial classes that are used in the core, but not necessary
+				$ignoreClasses = array( 'FB', 'FirePHP' );
+
+				if ( !class_exists( $class, false ) && in_array( $class, $ignoreClasses ) ) {
+					// Fudge it
+					$prototype = 'class ' . $class . ' {
+							public function __get($var){}
+							public function __set($var, $val){}
+							public function __call($method, $params){}
+							public static function __callStatic($method, $params){}
+						}';
+
+					/* TODO: Test how to check for eval() (i.e. if disabled/safe-mode etc)
+					if ( !function_exists( 'eval' ) ) {
+						$code = '<?php ' . $prototype;
+						include( 'data://text/plain;base64,' . base64_encode($code) );
+					}
+					else {
+						eval( $prototype );
+					}
+					*/
+
+					eval( $prototype );
+				}
+			});
+
+			register_shutdown_function(function(){
+				if ( DEBUG ) {
+					@FB::table( count( EddyDB::$queries ) . ' Queries', array_merge( array( array( 'Query', 'Query Time (s)' ) ), EddyDB::$queries ) );
+
+					FB::info( Eddy::$request, 'Eddy::$request' );
+					FB::info( Eddy::$controller, 'Eddy::$controller' );
+					FB::info( $_SERVER, '$_SERVER' );
+					FB::info( $_SESSION, '$_SESSION' );
+					FB::info( $_GET, '$_GET' );
+					FB::info( $_POST, '$_POST' );
+					//FB::info( 'Page took ' . ( microtime(true) - $EddyFC[ 'start' ] ) . 's to prepare' );
+				}
+
+				if ( ob_get_level() > 0 ) {
+					ob_end_flush();
+				}
+			});
+
+			set_exception_handler(function( Exception $e ) {
+				echo '<p>There was an Exception. See FireBug</p>';
+
+				FB::error($e);
+			});
 		}
 		
 		private static function config() {

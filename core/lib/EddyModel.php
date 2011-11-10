@@ -1,17 +1,17 @@
 <?php
 	abstract class EddyModel extends EddyBase {
+		public $_id;
+		
 		protected $id;
 		protected $isDataBound = false;
+		protected $table;
 
 		// This is a bit unsafe and could potentially eat up memory
 		protected static $cache = array();
 		protected static $db_table;
-		protected $table;
 		
 		private $original;
 		private $additional_save_fields = array();
-		
-		public $_id;
 
 		/**
 		 * EddyModel constructor
@@ -19,13 +19,13 @@
 		 */
 		public function __construct( $id = null ) {
 			$this->table = self::getTableName( get_class( $this ) );
-	
+
 			if ( $this->id ) {
 				// $this->id was set before we got here (i.e. by MySQLi_Result->fetch_object() call)
 				$this->isDataBound = true;
 				$this->original = get_object_public_vars( $this );
 			}
-			elseif ( MySQL_Helper::is_id( $id ) && !$this->isDataBound ) {
+			elseif ( \Helpers\MySQL::is_id( $id ) && !$this->isDataBound ) {
 				$cachedObj = self::$cache[ $this->table . $id ];
 
 				if ( $cachedObj instanceof $this ) {
@@ -67,14 +67,14 @@
 			return $row[ 'count' ];
 		}
 
-		final private static function getTableName( $table ) {
-			$table = strtolower( str_ireplace( array( '^\\', '^Models\\', '\\', '^' ), array( '^', '', '_', '' ), '^' . $table) );
+		final protected static function getTableName( $table ) {
+			$table = strtolower( str_ireplace( array( '^\\', '^Models\\', '\\', '^' ), array( '^', '', '_', '' ), '^' . $table ) );
 			
 			if ( static::$db_table ) {
 				$table = static::$db_table;
 			}
 			else {
-				$table = strtolower( Inflector_Helper::pluralize( $table ) );
+				$table = strtolower( \Helpers\Inflector::pluralize( $table ) );
 			}
 			
 			return $table;
@@ -87,7 +87,7 @@
 		 * @final
 		 */
 		final private function findById( $id ) {
-			if ( MySQL_Helper::is_id( $id ) ) {
+			if ( \Helpers\MySQL::is_id( $id ) ) {
 				$result = EddyDB::q( 'SELECT * FROM `' . $this->table . '` WHERE id = ' . $id );
 
 				if ( $result instanceof mysqli_result ) {
@@ -214,7 +214,7 @@
 			$result = EddyDB::q( $query );
 	
 			if ( $result->num_rows > 0 ) {
-				while ( $row = $result->fetch_object( "\\Models\\". $table ) ) {
+				while ( $row = $result->fetch_object( '\\Models\\' . ucfirst( $table ) ) ) {
 					$rows[] = $row;
 				}
 			}
@@ -238,7 +238,7 @@
 
 			// XXX: This isn't such a good idea!
 			//if ( array_key_exists( 'created_date', $this_public_vars ) ) {
-			//	$this->created_date = MySQLi_Helper::datestamp();
+			//	$this->created_date = \Helpers\MySQL::datestamp();
 			//}
 
 			// Should this overwrite any set values? Or should it only save if it doesn't already exist?

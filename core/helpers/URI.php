@@ -1,5 +1,7 @@
 <?php
-	class URI_Helper {
+	namespace Helpers;
+	
+	class URI {
 		/**
 		 * Amend the query string
 		 * @param array $params Array of $_GET params you want to adjust and their new values
@@ -9,7 +11,7 @@
 		 */
 		public static function amend_qs( $params, $toggle = false, $clearCurrent = false ) {
 			if ( !$clearCurrent && $_SERVER[ 'QUERY_STRING' ] != '' ) {
-				$newQueryString = String_Helper::explode_with_keys( '&', $_SERVER[ 'QUERY_STRING' ] );
+				$newQueryString = String::explode_with_keys( '&', $_SERVER[ 'QUERY_STRING' ] );
 			}
 
 			if ( is_array( $params ) ) {
@@ -24,7 +26,7 @@
 			}
 
 			if ( is_array( $newQueryString ) ) {
-				$qs = String_Helper::implode_with_keys( '&', $newQueryString );
+				$qs = String::implode_with_keys( '&', $newQueryString );
 
 				if ( $qs ) {
 					return '?' . $qs;
