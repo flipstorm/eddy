@@ -7,7 +7,7 @@
 		private $socket = MYSQL_SOCKET;
 		private $table_prefix = MYSQL_TBLPREF;
 		private $user = MYSQL_USER;
-		
+
 		private static $instance;
 
 		public static $debugQueryCount;
@@ -15,25 +15,25 @@
 		public static $totalQueryTime = 0;
 		public static $insertId;
 		public static $queries;
-	
+
 		public function __construct( $host = null, $user = null, $pass = null, $db = null, $port = null, $socket = null ) {
 			foreach ( func_get_args() as $arg => $value ) {
 				if ( $value != null ) {
 					$this->$arg = $value;
 				}
 			}
-			
+
 			if ( !self::$instance instanceof EddyDB ) {
 				parent::__construct( $this->host, $this->user, $this->pass, $this->db, $this->port, $this->socket );
-	
+
 			    if ( mysqli_connect_errno() ) {
 			    	throw new Exception( 'Connection to Database failed!' );
 			    }
-	
+
 				self::$instance = $this;
 			}
 		}
-	
+
 		public static function getInstance() {
 			if ( self::$instance instanceof EddyDB ) {
 				return self::$instance;
@@ -50,7 +50,7 @@
 		 */
 		public static function esc_str( $str ) {
 			$db = self::getInstance();
-			
+
 			return $db->escape_string( $str );
 		}
 
@@ -62,7 +62,7 @@
 		 */
 		public static function q( $query ) {
 			$db = self::getInstance();
-			
+
 			return $db->query( $query );
 		}
 
@@ -70,10 +70,10 @@
 			$startTime = microtime( true );
 			$result = parent::query( $query );
 			$endTime = microtime( true );
-	
+
 			$execTime = $endTime - $startTime;
 			self::$totalQueryTime += $execTime;
-	
+
 			if ( $result ) {
 				if ( DEBUG && self::$debugQueryCount < 100 ) {
 					self::$queries[] = array( $query, $execTime );
@@ -81,27 +81,35 @@
 				}
 
 				self::$debugActualQueryCount++;
-	
+
 				if ( $this->insert_id ) {
 					self::$insertId = $this->insert_id;
 				}
 			}
 			else {
 				FB::error( $query, 'Error in Query: ' . $this->error );
-				//FB::trace( 'Stack Trace' );
+				FB::trace( 'Stack Trace' );
 			}
-	
+
 			return $result;
 		}
-		
-		public static function q_into_array($query) {
-			$result = self::q($query);
-			
+
+		public static function q_into_array( $query, $class = null ) {
+			$result = self::q( $query );
+
 			$return = array();
-			while ( $row = $result->fetch_object() ) {
-				$return[] = $row;
+
+			if ( $class ) {
+				while ( $row = $result->fetch_object( $class ) ) {
+					$return[] = $row;
+				}
 			}
-			
+			else {
+				while ( $row = $result->fetch_object() ) {
+					$return[] = $row;
+				}
+			}
+
 			return $return;
 		}
 
@@ -111,10 +119,10 @@
 
 			return $row[0];
 		}
-	
+
 		public static function getDatabaseName() {
 			$instance = self::getInstance();
-	
+
 			return $instance->db;
 		}
 	}

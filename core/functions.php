@@ -1,16 +1,16 @@
 <?php
 	function buffer_include( $filepath, $vars = array() ) {
 		ob_start();
-		
+
 		extract( $vars );
 		include( $filepath );
 
 		return ob_get_clean();
 	}
-	
+
 	function get_object_public_vars( $obj ) {
 		$vars = get_object_vars( $obj );
-		
+
 		// Remove vars that begin with '_', although technically public, they're treated as private for the purposes of this function
 		// XXX: This isn't very intuitive. Is there a better way to do this?
 		foreach ( $vars as $key => $val ) {
@@ -18,11 +18,24 @@
 				$cleanVars[ $key ] = $val;
 			}
 		}
-		
+
 		return $cleanVars;
 	}
-	
-	function get_namespace( &$obj ) {
+
+	function get_class_public_methods( $class_name ) {
+		$methods = (array) get_class_methods( $class_name );
+
+		foreach ( $methods as $method ) {
+			// Ignore magic methods
+			if ( strpos( $method, '__' ) !== 0 ) {
+				$fixed_methods[] = $method;
+			}
+		}
+
+		return $fixed_methods;
+	}
+
+	function get_namespace( $obj ) {
 		$class = explode( '\\', get_class( $obj ) );
 		array_pop( $class );
 
@@ -93,7 +106,7 @@
 	 */
 	function x_of( $item, $count ){
 		$items = array();
-	
+
 		for ( $i = 1; $i <= $count; $i++ ){
 			$items[] = is_object( $item ) ? clone $item : $item;
 		}

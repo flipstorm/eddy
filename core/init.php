@@ -2,22 +2,21 @@
 	final class Eddy {
 		private static $path_to_core;
 		private static $path_to_app;
-		
+		private static $path_to_public;
+
 		public static $public_folder = 'public';
 
 		public static $routes;
 		public static $request;
 		public static $controller;
-		
-		public static function init( $path ) {
-			self::app( $path );
-			
-			self::set_paths();
-			
+
+		public static function init( $app_path ) {
+			self::set_paths( $app_path );
+
 			self::setup();
-			
+
 			self::config();
-			
+
 			if ( DEBUG ) {
 				error_reporting( E_ALL ^ E_NOTICE );
 				ob_start( 'ob_gzhandler' );
@@ -26,30 +25,39 @@
 			session_start();
 
 			require_once 'functions.php';
-			
+
+			//call_user_func( 'application_start' );
+
 			FB::setEnabled( DEBUG );
 			Routes::add( self::$routes );
 
 			self::$request = new EddyRequest();
-			
+
 			if ( !self::get_cached() ) {
 				$start = microtime(true);
 				self::run_action();
 				FB::info( microtime(true) - $start, 'Run Action' );
-				
+
 				$start = microtime(true);
 				self::render_view();
 				FB::info( microtime(true) - $start, 'Render View' );
 			}
 		}
-		
-		private static function set_paths() {
+
+		private static function set_paths( $app_path ) {
+			self::path_to_app( $app_path );
+
 			if ( !self::$path_to_core ) {
-				self::core();
+				self::path_to_core();
+			}
+
+			if ( !self::$path_to_public ) {
+				self::path_to_public();
 			}
 
 			define( 'APP_ROOT', self::$path_to_app );
 			define( 'CORE_ROOT', self::$path_to_core );
+			define( 'PUBLIC_ROOT', self::$path_to_public );
 			define( 'PUBLIC_FOLDER', self::$public_folder );
 
 			$inc_path = array(
@@ -60,20 +68,25 @@
 
 			set_include_path( implode( PATH_SEPARATOR, $inc_path ) );
 		}
-		
-		public static function app( $path ) {			
+
+		private static function path_to_app( $path ) {
 			self::$path_to_app = realpath( $path );
 		}
-		
-		public static function core( $path = null ) {
+
+		private static function path_to_core( $path = null ) {
 			if ( !$path ) {
 				$path = __DIR__;
 			}
-			
+
 			self::$path_to_core = realpath( $path );
 		}
-		
+
+		private static function path_to_public() {
+			self::$path_to_public = realpath( self::$path_to_app . '/../' . self::$public_folder );
+		}
+
 		private static function setup() {
+			// Default autoload
 			spl_autoload_register(function( $class ) {
 				// XXX: There may be unexpected behaviour on case-insensitive filesystems
 
@@ -83,11 +96,11 @@
 				$isController = false;
 				if ( strpos( '^' . $class, '^\\Controllers\\' ) !== false || strpos( '^' . $class, '^Controllers\\' ) !== false ) {
 					// This is a controller
-					$isController = true;
 					$classFile = strtolower( str_ireplace( array( '^\\', '^Controllers\\', '\\', '_Controller$' ), array( '^', '', '/', '' ), '^' . $class . '$' ) ) . '.php';
 					@include_once( 'controllers/' . $classFile );
 				}
 				elseif  ( strpos( '^' . $class, '^\\Models\\' ) !== false || strpos( '^' . $class, '^Models\\' ) !== false ) {
+					// This is a model
 					$classFile =  str_ireplace( array( '^\\', '^Models\\', '\\' ), array( '^', '', '/' ), '^' . $class) ;
 
 					$classPI = pathinfo( $classFile );
@@ -95,7 +108,6 @@
 					$singular = \Helpers\Inflector::singularize( $classPI[ 'filename' ] );
 					$plural = \Helpers\Inflector::pluralize( $classPI[ 'filename' ] );
 
-					// See if it's a model first
 					if ( file_exists( APP_ROOT . '/models/' . $classFile .'.php' ) ) {
 						include_once( 'models/' . $classFile .'.php');
 					}
@@ -107,60 +119,18 @@
 					elseif ( file_exists( APP_ROOT . '/models/' . $classPath . '/' . $singular .'.php' ) ) {
 						include_once( 'models/' . $classPath . '/' . $singular .'.php' );
 					}
-				}
-				elseif ( strpos( '^' . $class, '^\\Helpers\\' ) !== false || strpos( '^' . $class, '^Helpers\\' ) !== false ) {
-					// TODO: Helpers can go into /lib/helpers/ when namespacing works
-					// This is a helper
 
-					$classFile = str_ireplace( array( '^\\', '^Helpers\\', '\\' ), array( '^', '', '/' ), '^' . $class ) . '.php';
-					@include_once( 'helpers/' . $classFile );
+					// Create a dynamic subclass for plural/singular class names
+					if ( $class == $singular && $is_plural ) {
+						eval( 'class ' . $singular . ' extends ' . $plural . ' {}' );
+					}
 				}
 				else {
-					// This is any other class (including models and core classes)
+					$classFile = ucfirst( preg_replace( array( '#^\\\#', '#\\\#' ), array( '', '/' ), $class ) );
+					$classPI = pathinfo( $classFile );
+					$classPath = strtolower( $classPI[ 'dirname' ] );
 
-					// XXX: This is going to be the cause of some possible naming collisions... Models ought to be namespaced
-
-					$singular = \Helpers\Inflector::singularize( $class );
-					$plural = \Helpers\Inflector::pluralize( $class );
-
-					// Old model code DEPRECATED
-					if ( file_exists( APP_ROOT . '/models/' . $class . '.php' ) ) {
-						include_once( 'models/' . $class . '.php' );
-					}
-					elseif ( file_exists( APP_ROOT . '/models/' . $plural . '.php' ) ) {
-						include_once( 'models/' . $plural . '.php' );
-
-						$is_plural = true;
-					}
-					elseif ( file_exists( APP_ROOT . '/models/' . $singular . '.php' ) ) {
-						include_once( 'models/' . $singular . '.php' );
-					}
-
-					// Otherwise, check for a standard lib or extra
-					else {
-						// TODO: Allow for namespaces here too!
-						$classFile = str_replace( '_', '/', $class ) . '.php';
-						$pluralFile = str_replace( '_', '/', $plural ) . '.php';
-						$singularFile = str_replace( '_', '/', $singular ) . '.php';
-
-						if ( file_exists( APP_ROOT . '/lib/' . $pluralFile ) || file_exists( CORE_ROOT . '/lib/' . $pluralFile ) ) {
-							include_once( 'lib/' . $pluralFile );
-
-							$is_plural = true;
-						}
-						elseif ( file_exists( APP_ROOT . '/lib/' . $singularFile ) || file_exists( CORE_ROOT . '/lib/' . $singularFile ) ) {
-							include_once( 'lib/' . $singularFile );
-						}
-						// XXX: Consider removing extras... just have it as a repository?
-						elseif ( file_exists( CORE_ROOT . '/extras/' . $classFile ) ) {
-							include_once( 'extras/' . $classFile );
-						}
-					}
-				}
-
-				// Create a dynamic subclass for plural/singular class names
-				if ( $class == $singular && $is_plural ) {
-					eval( 'class ' . $singular . ' extends ' . $plural . ' {}' );
+					@include_once( 'lib/' . $classPath . '/' . $classPI[ 'filename' ] . '.php' );
 				}
 
 				// These are non-crucial classes that are used in the core, but not necessary
@@ -189,9 +159,19 @@
 				}
 			});
 
+			// Shutdown
 			register_shutdown_function(function(){
 				if ( DEBUG ) {
-					@FB::table( count( EddyDB::$queries ) . ' Queries', array_merge( array( array( 'Query', 'Query Time (s)' ) ), EddyDB::$queries ) );
+					if ( EddyDB::$debugActualQueryCount > EddyDB::$debugQueryCount ) {
+						$queries_label = EddyDB::$debugQueryCount . ' of ' . EddyDB::$debugActualQueryCount . ' queries shown.';
+					}
+					else {
+						$queries_label = EddyDB::$debugQueryCount . ' queries.';
+					}
+					
+					$queries_label .= ' Total query time: ' . number_format( EddyDB::$totalQueryTime, 3 ) . 's';
+					
+					@FB::table( $queries_label, array_merge( array( array( 'Query', 'Query Time (s)' ) ), EddyDB::$queries ) );
 
 					FB::info( Eddy::$request, 'Eddy::$request' );
 					FB::info( Eddy::$controller, 'Eddy::$controller' );
@@ -207,13 +187,19 @@
 				}
 			});
 
+//			set_error_handler(function( $errno, $errstr, $errfile, $errline ) {
+//				throw new ErrorException( $errstr, 0, $errno, $errfile, $errline );
+//			});
+
+			// Default exception handler
 			set_exception_handler(function( Exception $e ) {
 				echo '<p>There was an Exception. See FireBug</p>';
 
-				FB::error($e);
+				FB::error( $e );
 			});
+
 		}
-		
+
 		private static function config() {
 			require_once 'config.php';
 
@@ -223,7 +209,7 @@
 				}
 			}
 		}
-		
+
 		private static function get_cached() {
 			$cacheFile = validCache( self::$request->full );
 
@@ -244,13 +230,13 @@
 				else {
 					echo file_get_contents( $cacheFile );
 				}
-				
+
 				return true;
 			}
-			
+
 			return false;
 		}
-		
+
 		private static function run_action() {
 			// Work out what method to call and what params to pass to it
 			// Determine if the desired method exists, fallback on index and if that doesn't exist, give up
@@ -312,11 +298,11 @@
 						$controller->error404();
 					}
 				}
-				
+
 				self::$controller = $controller;
 			}
 		}
-		
+
 		private static function render_view() {
 			$format = self::$request->format;
 			$params = array( self::$controller->data, self::$controller->template, self::$controller->view );
@@ -348,7 +334,9 @@
 			}
 			// ### END CACHING ###
 
-			// Content-Disposition - relies on output buffering with ob_gzhandler
+			// Content-Disposition
+			// TODO: Move this out into it's own separate library e.g. Downloads
+			// This xml.gz implementation relies on output buffering with ob_gzhandler
 			switch ( implode( '.', self::$request->extensions ) ) {
 				case 'xml.gz':
 					$cd_filename = str_replace( '/', '_', self::$request->actual );

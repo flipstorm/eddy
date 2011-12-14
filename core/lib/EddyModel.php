@@ -37,46 +37,48 @@
 				else {
 					// Object not cached: Create a new object and cache it
 					$this->isDataBound = $this->findById( $id );
-					
+
 					//self::$cache[ $this->table . $id ] = $this;
 				}
 			}
 		}
-		
+
 		protected function _get_id() {
 			return $this->id;
 		}
-		
+
 		protected function _get_isDataBound() {
 			return $this->isDataBound;
 		}
 
 		/**
 		 * Get a count of records - optionally matching a WHERE clause
-		 * @param string $table Use __CLASS__
 		 * @param string $where
+		 * @param string[optional] $count_col Column to use for count. Default: id
 		 * @return int
 		 */
-		protected static function count( $table, $where = null, $count_col = 'id' ) {
+		protected static function count( $where = null, $count_col = 'id' ) {
+			$table = self::getTableName( get_called_class() );
+			
 			$where = ( isset( $where ) ) ? ' WHERE ' . $where : '';
-		
-			if ( $result = EddyDB::q( 'SELECT COUNT(' . $count_col . ') AS count FROM `' . strtolower( $table ) . '`' . $where ) ) {
+
+			if ( $result = EddyDB::q( 'SELECT COUNT(' . $count_col . ') AS count FROM `' . $table . '`' . $where ) ) {
 				$row = $result->fetch_array();
 			}
-			
+
 			return $row[ 'count' ];
 		}
 
 		final protected static function getTableName( $table ) {
 			$table = strtolower( str_ireplace( array( '^\\', '^Models\\', '\\', '^' ), array( '^', '', '_', '' ), '^' . $table ) );
-			
+
 			if ( static::$db_table ) {
 				$table = static::$db_table;
 			}
 			else {
 				$table = strtolower( \Helpers\Inflector::pluralize( $table ) );
 			}
-			
+
 			return $table;
 		}
 
@@ -105,10 +107,10 @@
 					}
 				}
 			}
-	
+
 			return false;
 		}
-		
+
 		// Super function to self::find that saves having to write a 'find' method in each model
 		public static function get( $args = array() ) {
 			$table = self::getTableName( get_called_class() );
@@ -124,7 +126,7 @@
 		 */
 		protected static function find( $table = null, $args = array(), $subquery = false ) {
 			$table = self::getTableName( $table );
-			
+
 			// Uppercase all keys in the args
 			$args = array_change_key_case( $args, CASE_UPPER );
 
@@ -132,25 +134,25 @@
 
 			if ( !empty( $args[ 'WHERE' ] ) ) {
 				$query .= ' WHERE ';
-				
+
 				if ( is_array( $args[ 'WHERE' ] ) ) {
 					$first = true;
-					
+
 					foreach( $args[ 'WHERE' ] as $field => $value ) {
 						$in_set = false;
-						
+
 						if ( !$first ) {
 							if ( preg_match( '/^[\|\|].+/', $field ) ) {
-								$field = preg_replace( '/^\|\|/', '', $field );
+								$field = trim( preg_replace( '/^\|\|/', '', $field ) );
 								$query .= ' OR ';
 							}
 							else {
 								$query .= ' AND ';
 							}
 						}
-						
+
 						$comparison = '=';
-						
+
 						if ( preg_match( '/^(>=|<=|<|>|!=)/', $value, $comparisons ) ) {
 							$comparison = $comparisons[1];
 							$value = preg_replace( '/^' . $comparison . '/', '', $value );
@@ -160,12 +162,12 @@
 							$value = $set[1];
 							$in_set = true;
 						}
-						
+
 						if( is_null( $value ) || $value == 'NULL' ) {
 							$value = 'NULL';
-							
+
 							$comparison = 'IS';
-							
+
 							if ( $comparison == '!=' ) {
 								$comparison .= ' NOT';
 							}
@@ -176,7 +178,7 @@
 						elseif ( $in_set ) {
 							// Set items must look like: 1,2,3,4,5,6
 							foreach ( explode( ',', $value ) as $item ) {
-								$values[] = EddyDB::esc_str( $item );
+								$values[] = EddyDB::esc_str( trim( $item ) );
 							}
 
 							$value = implode( ', ', $values );
@@ -184,9 +186,9 @@
 							$comparison = 'IN (';
 							$value .= ' )';
 						}
-						
+
 						$query .= '`' . $field . '` ' . $comparison . ' ' . $value;
-						
+
 						$first = false;
 					}
 				}
@@ -195,7 +197,8 @@
 					$query .= $args[ 'WHERE' ];
 				}
 			}
-			
+
+			// TODO: improver ORDER BY and GROUP BY, parsing the field names out and escaping with backticks?
 			$order_by = ( !empty( $args[ 'ORDERBY' ] ) ) ? ' ORDER BY ' . $args[ 'ORDERBY' ] : '';
 			$limit = ( !empty( $args[ 'LIMIT' ] ) ) ? ' LIMIT ' . $args[ 'LIMIT' ] : '';
 			$group_by = ( !empty( $args[ 'GROUPBY' ] ) ) ? ' GROUP BY ' . $args[ 'GROUPBY' ] : '';
@@ -210,15 +213,15 @@
 				default:
 					$query .= $group_by . $order_by . $limit;
 			}
-			
+
 			$result = EddyDB::q( $query );
-	
+
 			if ( $result->num_rows > 0 ) {
 				while ( $row = $result->fetch_object( '\\Models\\' . ucfirst( $table ) ) ) {
 					$rows[] = $row;
 				}
 			}
-	
+
 			return $rows;
 		}
 
@@ -229,7 +232,7 @@
 		 */
 		public function save( $asNew = false, $force = false ) {
 			$db = EddyDB::getInstance();
-	
+
 			if ( !isset( $this->id ) ) {
 				$asNew = true;
 			}
@@ -244,17 +247,21 @@
 			// Should this overwrite any set values? Or should it only save if it doesn't already exist?
 			// Or should we enforce properties that we want to save should be public?
 			foreach ( $this->additional_save_fields as $field => $value ) {
+				//if ( $this->$field ) {
+				//	$value = $this->$field;
+				//}
+				
 				$this_public_vars[ $field ] = $value;
 			}
 
 			foreach ( $this_public_vars as $fieldname => $value ) {
 				if ( ( $force && !is_null( $value ) ) || $this->original[ $fieldname ] !== $value || ( $asNew && !is_null( $value ) ) ) {
 					// TODO: Test that this handles integers and decimals ok
-					
+
 					if ( $this->original[ $fieldname ] !== $value && is_null( $value ) ) {
 						$value = 'NULL';
 					}
-					
+
 					if ( $value !== 'NULL' ) {
 						if ( is_bool( $value ) ) {
 							$value = ( $value ) ? 1 : 0;
@@ -291,7 +298,7 @@
 			// TODO: Refresh the object in memory with latest from DB?
 			// This is only worthwile where the update itself causes a change to certain data
 			// like an on_update CURRENT_TIMESTAMP for a TIMESTAMP field
-			
+
 			return $result;
 		}
 
@@ -303,19 +310,21 @@
 		 */
 		public function delete( $realDelete = false ) {
 			$db = EddyDB::getInstance();
-			
+
 			if ( $realDelete ) {
 				$result = $db->query( 'DELETE FROM `' . $this->table . '` WHERE id = ' . $this->id );
+				$this->new_row();
 			}
 			else {
 				if ( array_key_exists( 'deleted', get_object_public_vars( $this ) ) ) {
+					$this->deleted = true;
 					$result = $db->query( 'UPDATE `' . $this->table . '` SET deleted = 1 WHERE id = ' . $this->id );
 				}
 				else {
 					FB::error( 'Could not pseudo-delete `' . $this->table . '` WHERE id = ' . $this->id . ', `deleted` field doesn\'t exist! Try calling $obj->delete(true)' );
 				}
 			}
-	
+
 			return $db->affected_rows;
 		}
 
@@ -328,7 +337,7 @@
 		 */
 		protected static function updateRange( $table, $range, $set ) {
 			$db = EddyDB::getInstance();
-			
+
 			$result = $db->query( 'UPDATE ' . strtolower( $table ) . ' SET ' . $set . ' WHERE id IN (' . $db->escape_string( $range ) . ')' );
 
 			return $db->affected_rows;
@@ -342,11 +351,15 @@
 			$this->findById( $this->id );
 		}
 
-		protected function add_data( $field, $value ) {
+		protected function add_data( $field, $value = null ) {
 			$this->additional_save_fields[ $field ] = $value;
 		}
 
 		public function __clone() {
+			$this->new_row();
+		}
+		
+		private function new_row() {
 			$this->id = null;
 			$this->_id = null;
 			$this->isDataBound = false;
