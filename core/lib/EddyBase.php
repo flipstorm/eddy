@@ -12,6 +12,12 @@
 				call_user_func( array( $this, '_set_' . $name ), $value );
 			}
 		}
+		
+		public function __isset( $name ) {
+			$value = $this->$name;
+			
+			return isset( $value );
+		}
 
 		// XXX: When are we ever using these?
 		public function __call( $name, $arguments ) {
