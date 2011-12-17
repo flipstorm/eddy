@@ -39,4 +39,15 @@
 				throw new Exception( "You tried to call a static method that doesn't exist" );
 			}
 		}
+
+		public static function __set_state( $array ) {
+			$class = get_called_class();
+			$obj = new $class;
+			
+			foreach ( $array as $field => $val ) {
+				$obj->$field = $val;
+			}
+			
+			return $obj;
+		}
 	}

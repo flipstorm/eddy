@@ -55,4 +55,8 @@
 
 			return URI::amend_qs( array( $getOrderByParam => $var, $getOrderParam => $order ) );
 		}
+		
+		public static function safe_table_name( $str ) {
+			return strtolower( preg_replace( array( '/[^a-z0-9_]/i', '/_{2,}/' ), array( '_', '_' ), $str ) );
+		}
 	}

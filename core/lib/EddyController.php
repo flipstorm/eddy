@@ -95,9 +95,10 @@
 				exit;
 			}
 			else {
-				$this->data[ 'redirect' ] = $location;
 				$this->cancel_request = true;
 			}
+			
+			return $location;
 		}
 
 		protected function security( $barrel, $key, $redirect = '/login' ) {

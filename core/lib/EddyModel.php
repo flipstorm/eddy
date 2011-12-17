@@ -6,225 +6,66 @@
 		protected $isDataBound = false;
 		protected $table;
 
-		// This is a bit unsafe and could potentially eat up memory
+		// Per-request caching. Enable in subclasses and override the $cache property
+		protected $cacheable = false;
+		
 		protected static $cache = array();
 		protected static $db_table;
 		
 		private $original;
 		private $additional_save_fields = array();
 
+		/*** MAGIC METHODS ***/
 		/**
 		 * EddyModel constructor
 		 * @param int $id Pass an id to get a saved object
 		 */
 		public function __construct( $id = null ) {
 			$this->table = self::getTableName( get_class( $this ) );
-
+			
 			if ( $this->id ) {
 				// $this->id was set before we got here (i.e. by MySQLi_Result->fetch_object() call)
 				$this->isDataBound = true;
 				$this->original = get_object_public_vars( $this );
 			}
 			elseif ( \Helpers\MySQL::is_id( $id ) && !$this->isDataBound ) {
-				$cachedObj = self::$cache[ $this->table . $id ];
+				if ( $this->cacheable ) {
+					$cachedObj = static::$cache[ $id ];
+					//$cachedObj = unserialize( static::$cache[ $id ] );
 
-				if ( $cachedObj instanceof $this ) {
-					// Object cached: Map the cached object onto the new one
-					foreach ( get_object_vars( $this ) as $key => $value ) {
-						$this->$key = $cachedObj->$key;
+					if ( $cachedObj instanceof $this ) {
+						//eval ( '$obj = ' . $cachedObj . ';' );
+						
+						
+						// Object cached: Map the cached object onto the new one
+						//foreach ( get_object_vars( $this ) as $key => $value ) {
+						//	$this->$key = $obj->$key;
+						//}
+						
+						foreach ( get_object_vars( $this ) as $key => $value ) {
+							$this->$key = $cachedObj->$key;
+						}
+					}
+					else {
+						// Object not cached: Create a new object and cache it
+						$this->isDataBound = $this->findById( $id );
+
+						//static::$cache[ $id ] = var_export( $this, true );
+						static::$cache[ $id ] = serialize( $this );
 					}
 				}
 				else {
-					// Object not cached: Create a new object and cache it
+					// Just get the data
 					$this->isDataBound = $this->findById( $id );
-
-					//self::$cache[ $this->table . $id ] = $this;
 				}
 			}
 		}
 
-		protected function _get_id() {
-			return $this->id;
+		public function __clone() {
+			$this->new_row();
 		}
 
-		protected function _get_isDataBound() {
-			return $this->isDataBound;
-		}
-
-		/**
-		 * Get a count of records - optionally matching a WHERE clause
-		 * @param string $where
-		 * @param string[optional] $count_col Column to use for count. Default: id
-		 * @return int
-		 */
-		protected static function count( $where = null, $count_col = 'id' ) {
-			$table = self::getTableName( get_called_class() );
-			
-			$where = ( isset( $where ) ) ? ' WHERE ' . $where : '';
-
-			if ( $result = EddyDB::q( 'SELECT COUNT(' . $count_col . ') AS count FROM `' . $table . '`' . $where ) ) {
-				$row = $result->fetch_array();
-			}
-
-			return $row[ 'count' ];
-		}
-
-		final protected static function getTableName( $table ) {
-			$table = strtolower( str_ireplace( array( '^\\', '^Models\\', '\\', '^' ), array( '^', '', '_', '' ), '^' . $table ) );
-
-			if ( static::$db_table ) {
-				$table = static::$db_table;
-			}
-			else {
-				$table = strtolower( \Helpers\Inflector::pluralize( $table ) );
-			}
-
-			return $table;
-		}
-
-		/**
-		 * Find a record in the database and map its data onto this instance's properties
-		 * @param int $id
-		 * @return bool Whether or not the object was successfully found and mapped
-		 * @final
-		 */
-		final private function findById( $id ) {
-			if ( \Helpers\MySQL::is_id( $id ) ) {
-				$result = EddyDB::q( 'SELECT * FROM `' . $this->table . '` WHERE id = ' . $id );
-
-				if ( $result instanceof mysqli_result ) {
-					$row = $result->fetch_array( MYSQLI_ASSOC );
-
-					if ( is_array( $row ) ) {
-						foreach ( $row as $fieldname => $data ) {
-							$this->$fieldname = $data;
-						}
-
-						$this->original = $row;
-						$this->_id = $this->id;
-
-						return true;
-					}
-				}
-			}
-
-			return false;
-		}
-
-		// Super function to self::find that saves having to write a 'find' method in each model
-		public static function get( $args = array() ) {
-			$table = self::getTableName( get_called_class() );
-
-			return self::find( $table, $args );
-		}
-
-		/**
-		 * Perform a basic search query
-		 * @param string $table Use __CLASS__
-		 * @param array $args The clauses to use in the query (valid keys: WHERE, ORDERBY, LIMIT, GROUPBY)
-		 * @return array An array of objects found
-		 */
-		protected static function find( $table = null, $args = array(), $subquery = false ) {
-			$table = self::getTableName( $table );
-
-			// Uppercase all keys in the args
-			$args = array_change_key_case( $args, CASE_UPPER );
-
-			$query = 'SELECT * FROM `' . $table . '`';
-
-			if ( !empty( $args[ 'WHERE' ] ) ) {
-				$query .= ' WHERE ';
-
-				if ( is_array( $args[ 'WHERE' ] ) ) {
-					$first = true;
-
-					foreach( $args[ 'WHERE' ] as $field => $value ) {
-						$in_set = false;
-
-						if ( !$first ) {
-							if ( preg_match( '/^[\|\|].+/', $field ) ) {
-								$field = trim( preg_replace( '/^\|\|/', '', $field ) );
-								$query .= ' OR ';
-							}
-							else {
-								$query .= ' AND ';
-							}
-						}
-
-						$comparison = '=';
-
-						if ( preg_match( '/^(>=|<=|<|>|!=)/', $value, $comparisons ) ) {
-							$comparison = $comparisons[1];
-							$value = preg_replace( '/^' . $comparison . '/', '', $value );
-						}
-
-						if ( preg_match( '/^IN\((.+)\)/', $value, $set ) ) {
-							$value = $set[1];
-							$in_set = true;
-						}
-
-						if( is_null( $value ) || $value == 'NULL' ) {
-							$value = 'NULL';
-
-							$comparison = 'IS';
-
-							if ( $comparison == '!=' ) {
-								$comparison .= ' NOT';
-							}
-						}
-						elseif ( is_string( $value ) && !$in_set ) {
-							$value = '"' . EddyDB::esc_str( $value ) . '"';
-						}
-						elseif ( $in_set ) {
-							// Set items must look like: 1,2,3,4,5,6
-							foreach ( explode( ',', $value ) as $item ) {
-								$values[] = EddyDB::esc_str( trim( $item ) );
-							}
-
-							$value = implode( ', ', $values );
-
-							$comparison = 'IN (';
-							$value .= ' )';
-						}
-
-						$query .= '`' . $field . '` ' . $comparison . ' ' . $value;
-
-						$first = false;
-					}
-				}
-				else {
-					// DEPRECATED: Where clauses as a string should be phased out?
-					$query .= $args[ 'WHERE' ];
-				}
-			}
-
-			// TODO: improver ORDER BY and GROUP BY, parsing the field names out and escaping with backticks?
-			$order_by = ( !empty( $args[ 'ORDERBY' ] ) ) ? ' ORDER BY ' . $args[ 'ORDERBY' ] : '';
-			$limit = ( !empty( $args[ 'LIMIT' ] ) ) ? ' LIMIT ' . $args[ 'LIMIT' ] : '';
-			$group_by = ( !empty( $args[ 'GROUPBY' ] ) ) ? ' GROUP BY ' . $args[ 'GROUPBY' ] : '';
-
-			switch ( $subquery ) {
-				case 'group':
-					$query = 'SELECT * FROM ( ' . $query . $order_by . ' ) AS ' . $table . $group_by . $limit;
-					break;
-				case 'order':
-					$query = 'SELECT * FROM ( ' . $query . $group_by . ' ) AS ' . $table . $order_by . $limit;
-					break;
-				default:
-					$query .= $group_by . $order_by . $limit;
-			}
-
-			$result = EddyDB::q( $query );
-
-			if ( $result->num_rows > 0 ) {
-				while ( $row = $result->fetch_object( '\\Models\\' . ucfirst( $table ) ) ) {
-					$rows[] = $row;
-				}
-			}
-
-			return $rows;
-		}
-
+		/*** PUBLIC ***/
 		/**
 		 * Save the current state of the object back to the database
 		 * @param bool $asNew Set to true to save this data in a new record (force INSERT)
@@ -329,6 +170,168 @@
 		}
 
 		/**
+		 * Reload the current object from the database
+		 * @return void
+		 */
+		public function refresh() {
+			$this->findById( $this->id );
+		}
+
+		/*** PUBLIC STATIC ***/
+		// Super function to self::find that saves having to write a 'find' method in each model
+		public static function get( $args = array() ) {
+			return self::find( get_called_class(), $args );
+		}
+
+		/*** PROTECTED ***/
+		protected function _get_id() {
+			return $this->id;
+		}
+
+		protected function _get_isDataBound() {
+			return $this->isDataBound;
+		}
+		
+		protected function _get_original() {
+			return $this->original;
+		}
+
+		protected function add_data( $field, $value = null ) {
+			$this->additional_save_fields[ $field ] = $value;
+		}
+
+		/*** PROTECTED STATIC ***/
+		/**
+		 * Get a count of records - optionally matching a WHERE clause
+		 * @param string $where
+		 * @param string[optional] $count_col Column to use for count. Default: id
+		 * @return int
+		 */
+		protected static function count( $where = null, $count_col = 'id' ) {
+			$table = self::getTableName( get_called_class() );
+			
+			$where = ( isset( $where ) ) ? ' WHERE ' . $where : '';
+
+			if ( $result = EddyDB::q( 'SELECT COUNT(' . $count_col . ') AS count FROM `' . $table . '`' . $where ) ) {
+				$row = $result->fetch_array();
+			}
+
+			return $row[ 'count' ];
+		}
+
+		/**
+		 * Perform a basic search query
+		 * @param string $table Use __CLASS__
+		 * @param array $args The clauses to use in the query (valid keys: WHERE, ORDERBY, LIMIT, GROUPBY)
+		 * @return array An array of objects found
+		 */
+		protected static function find( $table = null, $args = array(), $subquery = false ) {
+			$table = self::getTableName( $table );
+
+			// Uppercase all keys in the args
+			$args = array_change_key_case( $args, CASE_UPPER );
+
+			$query = 'SELECT *, 1 as isDataBound FROM `' . $table . '`';
+
+			if ( !empty( $args[ 'WHERE' ] ) ) {
+				$query .= ' WHERE ';
+
+				if ( is_array( $args[ 'WHERE' ] ) ) {
+					$first = true;
+
+					foreach( $args[ 'WHERE' ] as $field => $value ) {
+						$in_set = false;
+
+						if ( !$first ) {
+							if ( preg_match( '/^[\|\|].+/', $field ) ) {
+								$field = trim( preg_replace( '/^\|\|/', '', $field ) );
+								$query .= ' OR ';
+							}
+							else {
+								$query .= ' AND ';
+							}
+						}
+
+						$comparison = '=';
+
+						if ( preg_match( '/^(>=|<=|<|>|!=)/', $value, $comparisons ) ) {
+							$comparison = $comparisons[1];
+							$value = preg_replace( '/^' . $comparison . '/', '', $value );
+						}
+
+						if ( preg_match( '/^IN\((.+)\)/', $value, $set ) ) {
+							$value = $set[1];
+							$in_set = true;
+						}
+
+						if( is_null( $value ) || $value == 'NULL' ) {
+							$value = 'NULL';
+
+							$comparison = 'IS';
+
+							if ( $comparison == '!=' ) {
+								$comparison .= ' NOT';
+							}
+						}
+						elseif ( is_string( $value ) && !$in_set ) {
+							$value = '"' . EddyDB::esc_str( $value ) . '"';
+						}
+						elseif ( $in_set ) {
+							// Set items must look like: 1,2,3,4,5,6
+							foreach ( explode( ',', $value ) as $item ) {
+								$values[] = EddyDB::esc_str( trim( $item ) );
+							}
+
+							$value = implode( ', ', $values );
+
+							$comparison = 'IN (';
+							$value .= ' )';
+						}
+						elseif( is_bool( $value ) ) {
+							$value = (int) $value;
+						}
+
+						$query .= '`' . $field . '` ' . $comparison . ' ' . $value;
+
+						$first = false;
+					}
+				}
+				else {
+					// DEPRECATED: Where clauses as a string should be phased out?
+					$query .= $args[ 'WHERE' ];
+				}
+			}
+
+			// TODO: improver ORDER BY and GROUP BY, parsing the field names out and escaping with backticks?
+			$order_by = ( !empty( $args[ 'ORDERBY' ] ) ) ? ' ORDER BY ' . $args[ 'ORDERBY' ] : '';
+			$limit = ( !empty( $args[ 'LIMIT' ] ) ) ? ' LIMIT ' . $args[ 'LIMIT' ] : '';
+			$group_by = ( !empty( $args[ 'GROUPBY' ] ) ) ? ' GROUP BY ' . $args[ 'GROUPBY' ] : '';
+
+			switch ( $subquery ) {
+				case 'group':
+					$query = 'SELECT * FROM ( ' . $query . $order_by . ' ) AS ' . $table . $group_by . $limit;
+					break;
+				case 'order':
+					$query = 'SELECT * FROM ( ' . $query . $group_by . ' ) AS ' . $table . $order_by . $limit;
+					break;
+				default:
+					$query .= $group_by . $order_by . $limit;
+			}
+
+			$result = EddyDB::q( $query );
+
+			if ( $result->num_rows > 0 ) {
+				$class = '\\Models\\' . str_replace( ' ', '_', ucwords( str_replace( '_', ' ', $table ) ) );
+				
+				while ( $row = $result->fetch_object( $class ) ) {
+					$rows[] = $row;
+				}
+			}
+
+			return $rows;
+		}
+
+		/**
 		 * Update a group of records setting the same values for each
 		 * @param string $table The table to update (use __CLASS__)
 		 * @param string $range Comma separated list of record IDs
@@ -343,25 +346,53 @@
 			return $db->affected_rows;
 		}
 
-		/**
-		 * Reload the current object from the database
-		 * @return void
-		 */
-		public function refresh() {
-			$this->findById( $this->id );
-		}
+		final protected static function getTableName( $table ) {
+			$table = strtolower( str_ireplace( array( '^\\', '^Models\\', '\\', '^' ), array( '^', '', '_', '' ), '^' . $table ) );
 
-		protected function add_data( $field, $value = null ) {
-			$this->additional_save_fields[ $field ] = $value;
-		}
+			if ( static::$db_table ) {
+				$table = static::$db_table;
+			}
+			else {
+				$table = strtolower( \Helpers\Inflector::pluralize( $table ) );
+			}
 
-		public function __clone() {
-			$this->new_row();
+			return $table;
 		}
 		
+		/*** PRIVATE ***/
 		private function new_row() {
 			$this->id = null;
 			$this->_id = null;
 			$this->isDataBound = false;
+		}
+
+		/**
+		 * Find a record in the database and map its data onto this instance's properties.
+		 * Should only be called from constructor
+		 * @param int $id
+		 * @return bool Whether or not the object was successfully found and mapped
+		 * @final
+		 */
+		final private function findById( $id ) {
+			if ( \Helpers\MySQL::is_id( $id ) ) {
+				$result = EddyDB::q( 'SELECT * FROM `' . $this->table . '` WHERE id = ' . $id );
+
+				if ( $result instanceof mysqli_result ) {
+					$row = $result->fetch_array( MYSQLI_ASSOC );
+
+					if ( is_array( $row ) ) {
+						foreach ( $row as $fieldname => $data ) {
+							$this->$fieldname = $data;
+						}
+
+						$this->original = $row;
+						$this->_id = $this->id;
+
+						return true;
+					}
+				}
+			}
+
+			return false;
 		}
 	}

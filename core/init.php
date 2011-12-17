@@ -163,23 +163,35 @@
 			register_shutdown_function(function(){
 				if ( DEBUG ) {
 					if ( EddyDB::$debugActualQueryCount > EddyDB::$debugQueryCount ) {
-						$queries_label = EddyDB::$debugQueryCount . ' of ' . EddyDB::$debugActualQueryCount . ' queries shown.';
+						$queries_label = (int) EddyDB::$debugQueryCount . ' of ' . EddyDB::$debugActualQueryCount . ' queries shown.';
 					}
 					else {
-						$queries_label = EddyDB::$debugQueryCount . ' queries.';
+						$queries_label = (int) EddyDB::$debugQueryCount . ' queries.';
 					}
 					
-					$queries_label .= ' Total query time: ' . number_format( EddyDB::$totalQueryTime, 3 ) . 's';
-					
-					@FB::table( $queries_label, array_merge( array( array( 'Query', 'Query Time (s)' ) ), EddyDB::$queries ) );
+					if ( EddyDB::$debugActualQueryCount > 0 ) {
+						$queries_label .= ' Total query time: ' . number_format( EddyDB::$totalQueryTime, 3 ) . 's';
+						FB::table( $queries_label, array_merge( array( array( 'Query', 'Query Time (s)' ) ), EddyDB::$queries ) );
+					}
+					else {
+						FB::info( $queries_label );
+					}
 
 					FB::info( Eddy::$request, 'Eddy::$request' );
 					FB::info( Eddy::$controller, 'Eddy::$controller' );
 					FB::info( $_SERVER, '$_SERVER' );
-					FB::info( $_SESSION, '$_SESSION' );
-					FB::info( $_GET, '$_GET' );
-					FB::info( $_POST, '$_POST' );
-					//FB::info( 'Page took ' . ( microtime(true) - $EddyFC[ 'start' ] ) . 's to prepare' );
+					
+					if ( !empty( $_SESSION ) ) {
+						FB::info( $_SESSION, '$_SESSION' );
+					}
+					
+					if ( !empty( $_GET ) ) {
+						FB::info( $_GET, '$_GET' );
+					}
+					
+					if ( !empty( $_POST ) ) {
+						FB::info( $_POST, '$_POST' );
+					}
 				}
 
 				if ( ob_get_level() > 0 ) {
@@ -268,7 +280,9 @@
 			if ( class_exists( self::$request->controller ) ) {
 				$controller = new self::$request->controller;
 
+				// If redirect happens in the constructor on an AJAX request, we don't want to run the action
 				if ( !$controller->cancel_request ) {
+					// TODO: check for methods like: [METHOD NAME]_action (so we can use unsafe method names like list and new, which are ordinarily reserved by PHP)
 					if ( method_exists( $controller, self::$request->method ) ) {
 						// Build the parameters to pass to the method
 						$params = array();
@@ -283,9 +297,7 @@
 						}
 
 						// Call the method
-						//timeme(function() use ($controller, $EddyFC, $params) {
-							call_user_func_array( array( $controller, self::$request->method ), $params );
-						//}, 'Run request method');
+						call_user_func_array( array( $controller, self::$request->method ), $params );
 
 						// Start output buffering if we haven't already but need to
 						if ( ob_get_level() == 1 && $controller->cacheable ) {
