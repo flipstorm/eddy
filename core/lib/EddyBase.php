@@ -1,7 +1,6 @@
 <?php
 	abstract class EddyBase {
 		public function __get( $name ) {
-			// Assume the method collects the data we want!
 			if ( method_exists( $this, '_get_' . $name ) ) {
 				return call_user_func( array( $this, '_get_' . $name ) );
 			}
@@ -17,6 +16,12 @@
 			$value = $this->$name;
 			
 			return isset( $value );
+		}
+		
+		public function __unset( $name ) {
+			if ( method_exists( $this, '_unset_' . $name ) ) {
+				call_user_func( array( $this, '_unset_' . $name ), $value );
+			}
 		}
 
 		// XXX: When are we ever using these?

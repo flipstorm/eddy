@@ -93,8 +93,9 @@
 			'man'    => 'men',
 			'tooth'  => 'teeth',
 			'person' => 'people',
-			'data' => 'data',
-			'trivia' => 'trivia'
+			'data'   => 'data',
+			'trivia' => 'trivia',
+			'people' => 'people'
 		);
 
 		static $uncountable = array(

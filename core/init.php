@@ -90,10 +90,6 @@
 			spl_autoload_register(function( $class ) {
 				// XXX: There may be unexpected behaviour on case-insensitive filesystems
 
-				// TODO: Start using namespaces for Helpers and Models - can then unify class loading
-				// This will mean using the nasty \namespace\class syntax, but it will be more future-proof
-
-				$isController = false;
 				if ( strpos( '^' . $class, '^\\Controllers\\' ) !== false || strpos( '^' . $class, '^Controllers\\' ) !== false ) {
 					// This is a controller
 					$classFile = strtolower( str_ireplace( array( '^\\', '^Controllers\\', '\\', '_Controller$' ), array( '^', '', '/', '' ), '^' . $class . '$' ) ) . '.php';
@@ -107,6 +103,8 @@
 					$classPath = $classPI[ 'dirname' ];
 					$singular = \Helpers\Inflector::singularize( $classPI[ 'filename' ] );
 					$plural = \Helpers\Inflector::pluralize( $classPI[ 'filename' ] );
+					
+					// Need to get rid of these file_exists() calls to work better with APC
 
 					if ( file_exists( APP_ROOT . '/models/' . $classFile .'.php' ) ) {
 						include_once( 'models/' . $classFile .'.php');
@@ -254,13 +252,14 @@
 			// Determine if the desired method exists, fallback on index and if that doesn't exist, give up
 
 			if ( method_exists( self::$request->controller, self::$request->method ) ) {
-				$strstr = explode("/", self::$request->fixed);
-				$strstr = array_reverse($strstr);
-				$strstr = implode("/", $strstr);
-				$strstr = stristr( $strstr, '/'.self::$request->method  , true );
-				$strstr = explode("/", $strstr);
-				$strstr = array_reverse($strstr);
-				$params = implode("/", $strstr);
+				// All of this just to get the params off the end of the request!
+				$strstr = explode( '/', self::$request->fixed );
+				$strstr = array_reverse( $strstr );
+				$strstr = implode( '/', $strstr );
+				$strstr = stristr( $strstr, '/' . self::$request->method, true );
+				$strstr = explode( '/', $strstr );
+				$strstr = array_reverse( $strstr );
+				$params = implode( '/', $strstr );
 
 				if ( strpos( self::$request->path . '$', self::$request->method . '$' ) !== false ) {
 					self::$request->path = str_replace( self::$request->method . '$', '', self::$request->path . '$' );

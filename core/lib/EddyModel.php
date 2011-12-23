@@ -1,7 +1,7 @@
 <?php
 	abstract class EddyModel extends EddyBase {
 		public $_id;
-		
+
 		protected $id;
 		protected $isDataBound = false;
 		protected $table;
@@ -30,18 +30,9 @@
 			}
 			elseif ( \Helpers\MySQL::is_id( $id ) && !$this->isDataBound ) {
 				if ( $this->cacheable ) {
-					$cachedObj = static::$cache[ $id ];
-					//$cachedObj = unserialize( static::$cache[ $id ] );
+					$cachedObj = unserialize( static::$cache[ $id ] );
 
 					if ( $cachedObj instanceof $this ) {
-						//eval ( '$obj = ' . $cachedObj . ';' );
-						
-						
-						// Object cached: Map the cached object onto the new one
-						//foreach ( get_object_vars( $this ) as $key => $value ) {
-						//	$this->$key = $obj->$key;
-						//}
-						
 						foreach ( get_object_vars( $this ) as $key => $value ) {
 							$this->$key = $cachedObj->$key;
 						}
@@ -50,7 +41,6 @@
 						// Object not cached: Create a new object and cache it
 						$this->isDataBound = $this->findById( $id );
 
-						//static::$cache[ $id ] = var_export( $this, true );
 						static::$cache[ $id ] = serialize( $this );
 					}
 				}
@@ -167,6 +157,19 @@
 			}
 
 			return $db->affected_rows;
+		}
+		
+		public function has_changed() {
+			$this_public_vars = get_object_public_vars( $this );
+			
+			foreach ( $this_public_vars as $fieldname => $value ) {
+				if ( $this->original[ $fieldname ] !== $value ) {
+					$changed = true;
+					break;
+				}
+			}
+			
+			return $changed;
 		}
 
 		/**
