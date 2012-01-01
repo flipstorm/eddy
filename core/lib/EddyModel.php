@@ -5,6 +5,7 @@
 		protected $id;
 		protected $isDataBound = false;
 		protected $table;
+		protected $original;
 
 		// Per-request caching. Enable in subclasses and override the $cache property
 		protected $cacheable = false;
@@ -12,8 +13,9 @@
 		protected static $cache = array();
 		protected static $db_table;
 		
-		private $original;
 		private $additional_save_fields = array();
+
+
 
 		/*** MAGIC METHODS ***/
 		/**
@@ -36,6 +38,8 @@
 						foreach ( get_object_vars( $this ) as $key => $value ) {
 							$this->$key = $cachedObj->$key;
 						}
+						
+						unset( $cachedObj );
 					}
 					else {
 						// Object not cached: Create a new object and cache it
@@ -54,6 +58,8 @@
 		public function __clone() {
 			$this->new_row();
 		}
+
+
 
 		/*** PUBLIC ***/
 		/**
@@ -120,6 +126,8 @@
 				$result = $db->query( 'UPDATE `' . $this->table . '`
 					SET ' . implode( ', ', $updateValues ) . '
 					WHERE id = ' . $this->id );
+					
+				// TODO: should we also update the original to reflect that this has been updated now?
 			}
 			else {
 				//throw new Exception( 'Data is unchanged, record not updated' );
@@ -159,17 +167,17 @@
 			return $db->affected_rows;
 		}
 		
+		// XXX: would this be better/more efficient as a hash comparison on a serialized version of the object?
 		public function has_changed() {
 			$this_public_vars = get_object_public_vars( $this );
 			
 			foreach ( $this_public_vars as $fieldname => $value ) {
 				if ( $this->original[ $fieldname ] !== $value ) {
-					$changed = true;
-					break;
+					return true;
 				}
 			}
 			
-			return $changed;
+			return false;
 		}
 
 		/**
@@ -180,11 +188,15 @@
 			$this->findById( $this->id );
 		}
 
+
+
 		/*** PUBLIC STATIC ***/
 		// Super function to self::find that saves having to write a 'find' method in each model
 		public static function get( $args = array() ) {
 			return self::find( get_called_class(), $args );
 		}
+
+
 
 		/*** PROTECTED ***/
 		protected function _get_id() {
@@ -202,6 +214,8 @@
 		protected function add_data( $field, $value = null ) {
 			$this->additional_save_fields[ $field ] = $value;
 		}
+
+
 
 		/*** PROTECTED STATIC ***/
 		/**
@@ -341,10 +355,11 @@
 		 * @param string $set The column name(s) and value(s) to set for the $range
 		 * @return int The number of updated rows
 		 */
-		protected static function updateRange( $table, $range, $set ) {
+		protected static function updateRange( $range, $set ) {
 			$db = EddyDB::getInstance();
+			$table = self::getTableName( get_called_class() );
 
-			$result = $db->query( 'UPDATE ' . strtolower( $table ) . ' SET ' . $set . ' WHERE id IN (' . $db->escape_string( $range ) . ')' );
+			$result = $db->query( 'UPDATE ' . $table . ' SET ' . $set . ' WHERE id IN (' . $db->esc_str( $range ) . ')' );
 
 			return $db->affected_rows;
 		}
@@ -362,6 +377,8 @@
 			return $table;
 		}
 		
+		
+		
 		/*** PRIVATE ***/
 		private function new_row() {
 			$this->id = null;
@@ -378,7 +395,7 @@
 		 */
 		final private function findById( $id ) {
 			if ( \Helpers\MySQL::is_id( $id ) ) {
-				$result = EddyDB::q( 'SELECT * FROM `' . $this->table . '` WHERE id = ' . $id );
+				$result = EddyDB::q( 'SELECT * FROM `' . $this->table . '` WHERE `id` = ' . $id );
 
 				if ( $result instanceof mysqli_result ) {
 					$row = $result->fetch_array( MYSQLI_ASSOC );

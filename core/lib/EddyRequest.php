@@ -67,6 +67,15 @@
 			$this->controller_filename = strtolower( str_replace( array( '\\Controllers\\', '\\' ), array( '', '/' ), $controllerName ) );
 			$this->controller = $controllerName . '_Controller';
 		}
+
+		public function is_ajax() {
+			if ( strtoupper( $_SERVER[ 'HTTP_X_REQUESTED_WITH' ] ) == 'XMLHTTPREQUEST' ) {
+				return true;
+			}
+			else {
+				return false;
+			}
+		}
 		
 		public static function get_current() {
 			if ( isset( $_SERVER[ 'REDIRECT_URL' ] ) ) {
