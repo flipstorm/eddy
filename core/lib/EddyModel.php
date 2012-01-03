@@ -92,7 +92,7 @@
 			}
 
 			foreach ( $this_public_vars as $fieldname => $value ) {
-				if ( ( $force && !is_null( $value ) ) || $this->original[ $fieldname ] !== $value || ( $asNew && !is_null( $value ) ) ) {
+				if ( ( $force && !is_null( $value ) ) || ($this->original[ $fieldname ] !== $value && $this->original[ $fieldname ] != $value) || ( $asNew && !is_null( $value ) ) ) {
 					// TODO: Test that this handles integers and decimals ok
 
 					if ( $this->original[ $fieldname ] !== $value && is_null( $value ) ) {
