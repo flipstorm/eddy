@@ -11,6 +11,11 @@
 		//public $cache_file;
 
 		public $cancel_request;
+		
+		// Only used when debugging
+		public function empty_data() {
+			unset( $this->data );
+		}
 
 		protected function _get_data() {
 			return $this->data;

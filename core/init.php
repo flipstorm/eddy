@@ -176,6 +176,9 @@
 					}
 
 					FB::info( Eddy::$request, 'Eddy::$request' );
+					
+					// Empty the data array before we do this... can get pretty hairy!
+					Eddy::$controller->empty_data();
 					FB::info( Eddy::$controller, 'Eddy::$controller' );
 					FB::info( $_SERVER, '$_SERVER' );
 					
