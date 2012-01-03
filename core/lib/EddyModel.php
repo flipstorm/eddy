@@ -7,8 +7,9 @@
 		protected $table;
 		protected $original;
 
-		// Per-request caching. Enable in subclasses and override the $cache property
+		// Per-request caching. Enable in subclasses and override the $cache property for safer encapsulation
 		protected $cacheable = false;
+		//protected static $cacheable = false;
 		
 		protected static $cache = array();
 		protected static $db_table;
@@ -29,12 +30,20 @@
 				// $this->id was set before we got here (i.e. by MySQLi_Result->fetch_object() call)
 				$this->isDataBound = true;
 				$this->original = get_object_public_vars( $this );
+				$this->_id = $this->id;
 			}
 			elseif ( \Helpers\MySQL::is_id( $id ) && !$this->isDataBound ) {
+				// static::$cacheable
 				if ( $this->cacheable ) {
+					// NOTE: Caching will not work for objects created using 'find'
+					// XXX: unless, all find did was get IDs which we then create new objects for individually
+					// instead of using fetch_object( CURRENT_CLASS ). Would *possibly* be more queries...
+					// But would only benefit from it if $this->cacheable... so wouldn't need it instead,
+					// could use it AS WELL AS the current method.
 					$cachedObj = unserialize( static::$cache[ $id ] );
 
 					if ( $cachedObj instanceof $this ) {
+						// Object cached: retrieve it
 						foreach ( get_object_vars( $this ) as $key => $value ) {
 							$this->$key = $cachedObj->$key;
 						}
@@ -172,7 +181,15 @@
 			$this_public_vars = get_object_public_vars( $this );
 			
 			foreach ( $this_public_vars as $fieldname => $value ) {
-				if ( $this->original[ $fieldname ] !== $value ) {
+				// Try to grab a string if $value is an object when
+				if ( !is_object( $this->original[ $fieldname ] ) && is_object( $value ) && method_exists( $value, '__toString' ) ) {
+					$value = $value->__toString();
+				}
+				
+				if ( $this->original[ $fieldname ] !== $value && $this->original[ $fieldname ] != $value ) {
+					//\FB::info($value, 'has_changed');
+					//\FB::info(gettype($value), '$value');
+					//\FB::info(gettype($this->original[ $fieldname ]), '$this->original[ ' . $fieldname . ' ]');
 					return true;
 				}
 			}
@@ -247,6 +264,14 @@
 
 			// Uppercase all keys in the args
 			$args = array_change_key_case( $args, CASE_UPPER );
+			
+			/* if ( static::$cacheable ) {
+			 * 	$query = 'SELECT id FROM `' . $table . '`';
+			 * }
+			 * else {
+			 * 	$query = 'SELECT *, 1 as isDataBound FROM `' . $table . '`';
+			 * }
+			 */
 
 			$query = 'SELECT *, 1 as isDataBound FROM `' . $table . '`';
 
@@ -319,7 +344,7 @@
 				}
 			}
 
-			// TODO: improver ORDER BY and GROUP BY, parsing the field names out and escaping with backticks?
+			// TODO: improve ORDER BY and GROUP BY, parsing the field names out and escaping with backticks?
 			$order_by = ( !empty( $args[ 'ORDERBY' ] ) ) ? ' ORDER BY ' . $args[ 'ORDERBY' ] : '';
 			$limit = ( !empty( $args[ 'LIMIT' ] ) ) ? ' LIMIT ' . $args[ 'LIMIT' ] : '';
 			$group_by = ( !empty( $args[ 'GROUPBY' ] ) ) ? ' GROUP BY ' . $args[ 'GROUPBY' ] : '';
@@ -339,6 +364,18 @@
 
 			if ( $result->num_rows > 0 ) {
 				$class = '\\Models\\' . str_replace( ' ', '_', ucwords( str_replace( '_', ' ', $table ) ) );
+				
+				/* if ( static::$cacheable ) {
+				 * 	while( $row = $result->fetch_array() ) {
+				 * 		$rows[] = new $class( $row[ 'id' ] );
+				 * 	}
+				 * }
+				 * else {
+				 * 	while ( $row = $result->fetch_object( $class ) ) {
+				 *		$rows[] = $row;
+				 *	}
+				 * }
+				 */
 				
 				while ( $row = $result->fetch_object( $class ) ) {
 					$rows[] = $row;
