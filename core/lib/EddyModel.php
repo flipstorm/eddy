@@ -8,10 +8,9 @@
 		protected $original;
 
 		// Per-request caching. Enable in subclasses and override the $cache property for safer encapsulation
-		protected $cacheable = false;
-		//protected static $cacheable = false;
-		
+		protected static $cacheable = false;
 		protected static $cache = array();
+		protected static $query_cache;
 		protected static $db_table;
 		
 		private $additional_save_fields = array();
@@ -33,8 +32,8 @@
 				$this->_id = $this->id;
 			}
 			elseif ( \Helpers\MySQL::is_id( $id ) && !$this->isDataBound ) {
-				// static::$cacheable
-				if ( $this->cacheable ) {
+				if ( static::$cacheable ) {
+				//if ( $this->cacheable ) {
 					// NOTE: Caching will not work for objects created using 'find'
 					// XXX: unless, all find did was get IDs which we then create new objects for individually
 					// instead of using fetch_object( CURRENT_CLASS ). Would *possibly* be more queries...
@@ -208,6 +207,24 @@
 
 
 		/*** PUBLIC STATIC ***/
+		/**
+		 * Get a count of records - optionally matching a WHERE clause
+		 * @param string $where
+		 * @param string[optional] $count_col Column to use for count. Default: id
+		 * @return int
+		 */
+		public static function count( $where = null, $count_col = 'id' ) {
+			$table = self::getTableName( get_called_class() );
+			
+			$where = ( isset( $where ) ) ? ' WHERE ' . $where : '';
+
+			if ( $result = EddyDB::q( 'SELECT COUNT(' . $count_col . ') AS count FROM `' . $table . '`' . $where ) ) {
+				$row = $result->fetch_array();
+			}
+
+			return $row[ 'count' ];
+		}
+		
 		// Super function to self::find that saves having to write a 'find' method in each model
 		public static function get( $args = array() ) {
 			return self::find( get_called_class(), $args );
@@ -235,23 +252,6 @@
 
 
 		/*** PROTECTED STATIC ***/
-		/**
-		 * Get a count of records - optionally matching a WHERE clause
-		 * @param string $where
-		 * @param string[optional] $count_col Column to use for count. Default: id
-		 * @return int
-		 */
-		protected static function count( $where = null, $count_col = 'id' ) {
-			$table = self::getTableName( get_called_class() );
-			
-			$where = ( isset( $where ) ) ? ' WHERE ' . $where : '';
-
-			if ( $result = EddyDB::q( 'SELECT COUNT(' . $count_col . ') AS count FROM `' . $table . '`' . $where ) ) {
-				$row = $result->fetch_array();
-			}
-
-			return $row[ 'count' ];
-		}
 
 		/**
 		 * Perform a basic search query
@@ -265,15 +265,14 @@
 			// Uppercase all keys in the args
 			$args = array_change_key_case( $args, CASE_UPPER );
 			
-			/* if ( static::$cacheable ) {
-			 * 	$query = 'SELECT id FROM `' . $table . '`';
-			 * }
-			 * else {
-			 * 	$query = 'SELECT *, 1 as isDataBound FROM `' . $table . '`';
-			 * }
-			 */
+			if ( static::$cacheable ) {
+				$query = 'SELECT id FROM `' . $table . '`';
+			}
+			else {
+				$query = 'SELECT *, 1 as isDataBound FROM `' . $table . '`';
+			}
 
-			$query = 'SELECT *, 1 as isDataBound FROM `' . $table . '`';
+			//$query = 'SELECT *, 1 as isDataBound FROM `' . $table . '`';
 
 			if ( !empty( $args[ 'WHERE' ] ) ) {
 				$query .= ' WHERE ';
@@ -360,25 +359,39 @@
 					$query .= $group_by . $order_by . $limit;
 			}
 
-			$result = EddyDB::q( $query );
-
-			if ( $result->num_rows > 0 ) {
-				$class = '\\Models\\' . str_replace( ' ', '_', ucwords( str_replace( '_', ' ', $table ) ) );
-				
-				/* if ( static::$cacheable ) {
-				 * 	while( $row = $result->fetch_array() ) {
-				 * 		$rows[] = new $class( $row[ 'id' ] );
-				 * 	}
-				 * }
-				 * else {
-				 * 	while ( $row = $result->fetch_object( $class ) ) {
-				 *		$rows[] = $row;
-				 *	}
-				 * }
-				 */
-				
-				while ( $row = $result->fetch_object( $class ) ) {
-					$rows[] = $row;
+			// Check to see if we have a cached result for this query (only works for identical queries!)
+			$query_key = md5( $query );
+			$query_cache = static::$query_cache[ $query_key ];
+			$class = '\\Models\\' . str_replace( ' ', '_', ucwords( str_replace( '_', ' ', $table ) ) );
+			
+			if ( static::$cacheable && is_array( $query_cache ) && !empty( $query_cache ) ) {
+				// Cache hit!
+				foreach ( $query_cache as $cached_id ) {
+					$rows[] = new $class( $cached_id );
+				}
+			}
+			else {
+				// Cache miss, hit the DB
+				$result = EddyDB::q( $query );
+	
+				if ( $result->num_rows > 0 ) {
+					if ( static::$cacheable ) {
+					 	while( $row = $result->fetch_array() ) {
+					 		$rows[] = new $class( $row[ 'id' ] );
+							
+							// Cache the query itself, so we get the ID from the cache!
+							static::$query_cache[ $query_key ][] = $row[ 'id' ];
+					 	}
+					}
+					else {
+					 	while ( $row = $result->fetch_object( $class ) ) {
+							$rows[] = $row;
+						}
+					}
+					
+					//while ( $row = $result->fetch_object( $class ) ) {
+					//	$rows[] = $row;
+					//}
 				}
 			}
 

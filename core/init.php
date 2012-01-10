@@ -124,11 +124,11 @@
 					}
 				}
 				else {
-					$classFile = ucfirst( preg_replace( array( '#^\\\#', '#\\\#' ), array( '', '/' ), $class ) );
+					$classFile = str_replace( '\\', '/', $class );
 					$classPI = pathinfo( $classFile );
 					$classPath = strtolower( $classPI[ 'dirname' ] );
 
-					@include_once( 'lib/' . $classPath . '/' . $classPI[ 'filename' ] . '.php' );
+					include_once( 'lib/' . $classPath . '/' . $classPI[ 'filename' ] . '.php' );
 				}
 
 				// These are non-crucial classes that are used in the core, but not necessary
@@ -255,14 +255,19 @@
 			// Determine if the desired method exists, fallback on index and if that doesn't exist, give up
 
 			if ( method_exists( self::$request->controller, self::$request->method ) ) {
-				// All of this just to get the params off the end of the request!
-				$strstr = explode( '/', self::$request->fixed );
-				$strstr = array_reverse( $strstr );
-				$strstr = implode( '/', $strstr );
-				$strstr = stristr( $strstr, '/' . self::$request->method, true );
-				$strstr = explode( '/', $strstr );
-				$strstr = array_reverse( $strstr );
-				$params = implode( '/', $strstr );
+				// XXX: All of this just to get the params off the end of the request! Is there a faster way?
+				//$params = timeme(function(){
+					//$strstr = explode( '/', self::$request->fixed );
+					$strstr = explode( '/', Eddy::$request->fixed );
+					$strstr = array_reverse( $strstr );
+					$strstr = implode( '/', $strstr );
+					// $strstr = stristr( $strstr, '/' . self::$request->method, true );
+					$strstr = stristr( $strstr, '/' . Eddy::$request->method, true );
+					$strstr = explode( '/', $strstr );
+					$strstr = array_reverse( $strstr );
+					$params = implode( '/', $strstr );
+				//	return $params;
+				//}, 'Get params');
 
 				if ( strpos( self::$request->path . '$', self::$request->method . '$' ) !== false ) {
 					self::$request->path = str_replace( self::$request->method . '$', '', self::$request->path . '$' );
