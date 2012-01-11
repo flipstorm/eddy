@@ -95,7 +95,7 @@
 			}
 
 			if ( $recordDestination ) {
-				$_SESSION[ 'destination' ] = Eddy::$request->actual;
+				$_SESSION[ 'destination' ] = Eddy::$request->original;
 			}
 
 			// If this is an AJAX call, we'll have to handle the redirect on the front-end
