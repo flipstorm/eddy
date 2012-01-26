@@ -114,6 +114,9 @@
 						elseif ( is_string( $value ) ) {
 							$value = '"' . $db->escape_string( $value ) . '"';
 						}
+						elseif ( is_object($value) ) {
+							$value = '"' . $db->escape_string( $value->value ) . '"';
+						}
 					}
 
 					$insertFields[] = $fieldname;
@@ -131,9 +134,10 @@
 				$this->isDataBound = true;
 			}
 			elseif ( !empty( $updateValues ) ) {
-				$result = $db->query( 'UPDATE `' . $this->table . '`
-					SET ' . implode( ', ', $updateValues ) . '
-					WHERE id = ' . $this->id );
+				$SQL = 'UPDATE `' . $this->table . '`
+						SET ' . implode( ', ', $updateValues ) . '
+						WHERE id = ' . $this->id;
+				$result = $db->query( $SQL );
 					
 				// TODO: should we also update the original to reflect that this has been updated now?
 			}
@@ -269,7 +273,6 @@
 				$query = 'SELECT id FROM `' . $table . '`';
 			}
 			else {
-				$query = 'SELECT *, 1 as isDataBound FROM `' . $table . '`';
 			}
 
 			//$query = 'SELECT *, 1 as isDataBound FROM `' . $table . '`';
