@@ -273,6 +273,7 @@
 				$query = 'SELECT id FROM `' . $table . '`';
 			}
 			else {
+				$query = 'SELECT *, 1 as isDataBound FROM `' . $table . '`';
 			}
 
 			//$query = 'SELECT *, 1 as isDataBound FROM `' . $table . '`';
@@ -307,8 +308,8 @@
 							$value = $set[1];
 							$in_set = true;
 						}
-
-						if( is_null( $value ) || $value == 'NULL' ) {
+						
+						if( is_null( $value ) || strtoupper($value) === 'NULL' ) {
 							$value = 'NULL';
 
 							$comparison = 'IS';
@@ -361,7 +362,7 @@
 				default:
 					$query .= $group_by . $order_by . $limit;
 			}
-
+			
 			// Check to see if we have a cached result for this query (only works for identical queries!)
 			$query_key = md5( $query );
 			$query_cache = static::$query_cache[ $query_key ];
