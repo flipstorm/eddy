@@ -33,12 +33,6 @@
 			}
 			elseif ( \Helpers\MySQL::is_id( $id ) && !$this->isDataBound ) {
 				if ( static::$cacheable ) {
-				//if ( $this->cacheable ) {
-					// NOTE: Caching will not work for objects created using 'find'
-					// XXX: unless, all find did was get IDs which we then create new objects for individually
-					// instead of using fetch_object( CURRENT_CLASS ). Would *possibly* be more queries...
-					// But would only benefit from it if $this->cacheable... so wouldn't need it instead,
-					// could use it AS WELL AS the current method.
 					$cachedObj = unserialize( static::$cache[ $id ] );
 
 					if ( $cachedObj instanceof $this ) {
@@ -84,13 +78,8 @@
 
 			$this_public_vars = get_object_public_vars( $this );
 
-			// XXX: This isn't such a good idea!
-			//if ( array_key_exists( 'created_date', $this_public_vars ) ) {
-			//	$this->created_date = \Helpers\MySQL::datestamp();
-			//}
-
-			// Should this overwrite any set values? Or should it only save if it doesn't already exist?
-			// Or should we enforce properties that we want to save should be public?
+			// TODO: only allow this to be a field reference, not a value too. That way, we can set it to save object properties that are otherwise outside the public scope
+			// unless... we may just want to change a value at the last minute for some reason
 			foreach ( $this->additional_save_fields as $field => $value ) {
 				//if ( $this->$field ) {
 				//	$value = $this->$field;
@@ -100,44 +89,63 @@
 			}
 
 			foreach ( $this_public_vars as $fieldname => $value ) {
+				$ignore = false;
+				
 				if ( ( $force && !is_null( $value ) ) || ($this->original[ $fieldname ] !== $value && $this->original[ $fieldname ] != $value) || ( $asNew && !is_null( $value ) ) ) {
-					// TODO: Test that this handles integers and decimals ok
-
 					if ( $this->original[ $fieldname ] !== $value && is_null( $value ) ) {
 						$value = 'NULL';
 					}
 
 					if ( $value !== 'NULL' ) {
 						if ( is_bool( $value ) ) {
+							// Convert to simplest true or false (works best with MySQL TINYINT(1) UNSIGNED NOT NULL)
 							$value = ( $value ) ? 1 : 0;
 						}
-						elseif ( is_string( $value ) ) {
+						
+						// Escape all other values and put them in quotation marks
+						elseif ( is_string( $value ) || is_numeric( $value ) ) {
 							$value = '"' . $db->escape_string( $value ) . '"';
 						}
-						elseif ( is_object($value) ) {
-							$value = '"' . $db->escape_string( $value->value ) . '"';
+						elseif ( is_object( $value ) && method_exists( $value, '__toString' ) ) {
+							// Try to extract a value from an object
+							$value = '"' . $db->escape_string( $value->__toString() ) . '"';
+						}
+						
+						// Ignore unusable values
+						//elseif ( is_array( $value ) ) {
+							// XXX: Throw an error?
+						//}
+						else {
+							// We don't know what the value is or how to get it
+							FB::warn( $value, 'Invalid value for ' . $this->table . '.' . $fieldname );
+							$ignore = true;
 						}
 					}
 
-					$insertFields[] = $fieldname;
-					$insertValues[] = $value;
-					$updateValues[] = $fieldname . ' = ' . $value;
+					if ( !$ignore ) {
+						$insertFields[] = $fieldname;
+						$insertValues[] = $value;
+						$updateValues[] = $fieldname . ' = ' . $value;
+					}
 				}
 			}
 
 			if ( !$this->isDataBound || $asNew ) {
-				$result = $db->query( 'INSERT INTO `' . $this->table . '` ( ' . implode( ',', $insertFields ) . ' )
-					VALUES ( ' . implode( ',', $insertValues ) . ' )' );
+				$result = $db->query(
+					'INSERT INTO `' . $this->table . '` ( ' . implode( ',', $insertFields ) . ' )
+					VALUES ( ' . implode( ',', $insertValues ) . ' )'
+				);
 
 				$this->id = EddyDB::$insertId;
 				$this->_id = $this->id;
 				$this->isDataBound = true;
 			}
 			elseif ( !empty( $updateValues ) ) {
-				$SQL = 'UPDATE `' . $this->table . '`
-						SET ' . implode( ', ', $updateValues ) . '
-						WHERE id = ' . $this->id;
-				$result = $db->query( $SQL );
+				$result = $db->query(
+					'UPDATE `' . $this->table . '`
+					SET ' . implode( ', ', $updateValues ) . '
+					WHERE id = ' . $this->id
+				);
 					
 				// TODO: should we also update the original to reflect that this has been updated now?
 			}

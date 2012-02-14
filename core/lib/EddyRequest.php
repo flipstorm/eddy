@@ -13,8 +13,12 @@
 		public $path;
 		
 		public function __construct( $uri = null ) {
-			// TODO: if a $uri is specified, then work out the details for that request
-			$uri = self::get_current();
+			if ( $uri ) {
+				$uri = self::fix_url( $uri );
+			}
+			else {
+				$uri = self::get_current();
+			}
 			
 			$path = pathinfo( $uri[ 'fixed' ] );
 			
@@ -53,6 +57,8 @@
 
 			while ( !class_exists( $controllerName . '_Controller' ) ) {
 				// Cycle up until we find a class that does exist
+
+				// TODO: Consider looking for a Default controller at every level...
 				if ( count( $controllerPath ) > 0 ) {
 					$this->method = self::rm_cleaner( array_pop( $controllerPath ) );
 
@@ -65,16 +71,13 @@
 
 			// Finish controller naming
 			$this->controller_filename = strtolower( str_replace( array( '\\Controllers\\', '\\' ), array( '', '/' ), $controllerName ) );
+
+			// TODO: Make this _Controller extension optional - it's only there for 'unsafe' controller names - i.e. reserved words in PHP
 			$this->controller = $controllerName . '_Controller';
 		}
 
 		public function is_ajax() {
-			if ( strtoupper( $_SERVER[ 'HTTP_X_REQUESTED_WITH' ] ) == 'XMLHTTPREQUEST' ) {
-				return true;
-			}
-			else {
-				return false;
-			}
+			return ( strtoupper( $_SERVER[ 'HTTP_X_REQUESTED_WITH' ] ) == 'XMLHTTPREQUEST' );
 		}
 		
 		public static function get_current() {
@@ -86,8 +89,16 @@
 				$requestURI = $_SERVER[ 'REQUEST_URI' ];
 			}
 
-			// Waiting for Routes to support query strings
-			$request[ 'original' ] = str_replace( '^' . str_replace( 'index.php', '', $_SERVER[ 'PHP_SELF' ] ), '', '^' . $requestURI );
+			return self::fix_url( $requestURI );
+		}
+
+		/**
+		 * This creates multiple versions of the given URL for later use. 
+		 */
+		private static function fix_url( $url ) {
+			$request[ 'original' ] = str_replace( '^' . str_replace( 'index.php', '', $_SERVER[ 'PHP_SELF' ] ), '', '^' . $url );
+
+			// TODO: Route through a single call. Waiting for Routes to fully support query strings, until then we have to do this twice (not ideal)
 			$request[ 'full' ] = Routes::route( $request[ 'original' ] );
 			$request[ 'actual' ] = Routes::route( str_replace( '?' . $_SERVER[ 'QUERY_STRING' ], '', $request[ 'original' ] ) );
 
@@ -95,18 +106,30 @@
 
 			$request[ 'fixed' ] = $request[ 'actual' ];
 
-			if ( !$request[ 'actual' ] || $request_rev{0} == '/' ) {
+			if ( !$request[ 'actual' ] || $request_rev[0] == '/' ) {
 				$request[ 'fixed' ] .= 'index';
 			}
 
 			return $request;
 		}
 		
+		/**
+		 * Request Method cleaner - cleans up the given string to make a valid method name
+		 * @param str $rm Request method name
+		 * @return str
+		 */
 		private static function rm_cleaner( $rm ) {
+			//return preg_replace( array( '/[^a-z0-9_]+/i', '/__/', array( '_', '_' ), strtolower( $rm ) );
 			return preg_replace( '/[^a-z0-9_]+/i', '_', strtolower( $rm ) );
 		}
 		
+		/**
+		 * Controller Name cleaner - cleans up the controller name from a given path array
+		 * @param array $path_array The path for the controller as an array
+		 * @return str
+		 */
 		private static function cn_cleaner( $path_array ) {
+			//return preg_replace( array( '/[^a-z0-9_\\\\]+/i', '__'), array( '_', '_' ), str_replace( ' ', '\\', ucwords( implode( ' ', $path_array ) ) ) );
 			return preg_replace( '/[^a-z0-9_\\\\]+/i', '_', str_replace( ' ', '\\', ucwords( implode( ' ', $path_array ) ) ) );
 		}
 	}
