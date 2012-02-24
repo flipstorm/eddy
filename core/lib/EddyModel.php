@@ -67,9 +67,11 @@
 		/**
 		 * Save the current state of the object back to the database
 		 * @param bool $asNew Set to true to save this data in a new record (force INSERT)
+		 * @param bool $force
+		 * @param bool $with_ignore Uses MySQL IGNORE statement
 		 * @return mysqli_result Query result object
 		 */
-		public function save( $asNew = false, $force = false ) {
+		public function save( $asNew = false, $force = false, $with_ignore = false ) {
 			$db = EddyDB::getInstance();
 
 			if ( !isset( $this->id ) ) {
@@ -91,7 +93,7 @@
 			foreach ( $this_public_vars as $fieldname => $value ) {
 				$ignore = false;
 				
-				if ( ( $force && !is_null( $value ) ) || ($this->original[ $fieldname ] !== $value && $this->original[ $fieldname ] != $value) || ( $asNew && !is_null( $value ) ) ) {
+				if ( ( $force && !is_null( $value ) ) || ( $this->original[ $fieldname ] !== $value && $this->original[ $fieldname ] != $value ) || ( $asNew && !is_null( $value ) ) ) {
 					if ( $this->original[ $fieldname ] !== $value && is_null( $value ) ) {
 						$value = 'NULL';
 					}
@@ -130,9 +132,13 @@
 				}
 			}
 
+			if ( $with_ignore ) {
+				$ignore = ' IGNORE';
+			}
+
 			if ( !$this->isDataBound || $asNew ) {
 				$result = $db->query(
-					'INSERT INTO `' . $this->table . '` ( ' . implode( ',', $insertFields ) . ' )
+					'INSERT' . $ignore . ' INTO `' . $this->table . '` ( ' . implode( ',', $insertFields ) . ' )
 					VALUES ( ' . implode( ',', $insertValues ) . ' )'
 				);
 
@@ -142,7 +148,7 @@
 			}
 			elseif ( !empty( $updateValues ) ) {
 				$result = $db->query(
-					'UPDATE `' . $this->table . '`
+					'UPDATE' . $ignore . ' `' . $this->table . '`
 					SET ' . implode( ', ', $updateValues ) . '
 					WHERE id = ' . $this->id
 				);
@@ -268,24 +274,33 @@
 		/**
 		 * Perform a basic search query
 		 * @param string $table Use __CLASS__
-		 * @param array $args The clauses to use in the query (valid keys: WHERE, ORDERBY, LIMIT, GROUPBY)
+		 * @param array $args The clauses to use in the query (valid keys: SELECT => ['field1[,field2]'], WHERE, ORDERBY, LIMIT, GROUPBY, SUBQUERY => [group, order])
 		 * @return array An array of objects found
 		 */
-		protected static function find( $table = null, $args = array(), $subquery = false ) {
+		protected static function find( $table = null, $args = array() ) {
 			$table = self::getTableName( $table );
 
 			// Uppercase all keys in the args
 			$args = array_change_key_case( $args, CASE_UPPER );
 			
+			// Only allow SELECT to be used when we're returning an array or the query
+			if ( $args[ 'SELECT' ] ) {
+				$fields = $args[ 'SELECT' ];
+				
+				$basic_objects = true;
+			}
+			else {
+				$fields = '*';
+			}
+			
 			if ( static::$cacheable ) {
 				$query = 'SELECT id FROM `' . $table . '`';
 			}
 			else {
-				$query = 'SELECT *, 1 as isDataBound FROM `' . $table . '`';
+				$query = 'SELECT ' . $fields . ', 1 as isDataBound FROM `' . $table . '`';
 			}
 
-			//$query = 'SELECT *, 1 as isDataBound FROM `' . $table . '`';
-
+			// Build WHERE clause
 			if ( !empty( $args[ 'WHERE' ] ) ) {
 				$query .= ' WHERE ';
 
@@ -317,7 +332,7 @@
 							$in_set = true;
 						}
 						
-						if( is_null( $value ) || strtoupper($value) === 'NULL' ) {
+						if ( is_null( $value ) || strtoupper($value) === 'NULL' ) {
 							$value = 'NULL';
 
 							$comparison = 'IS';
@@ -355,17 +370,17 @@
 				}
 			}
 
-			// TODO: improve ORDER BY and GROUP BY, parsing the field names out and escaping with backticks?
+			// TODO: improve SELECT, ORDER BY and GROUP BY, parsing the field names out and escaping with backticks?
 			$order_by = ( !empty( $args[ 'ORDERBY' ] ) ) ? ' ORDER BY ' . $args[ 'ORDERBY' ] : '';
 			$limit = ( !empty( $args[ 'LIMIT' ] ) ) ? ' LIMIT ' . $args[ 'LIMIT' ] : '';
 			$group_by = ( !empty( $args[ 'GROUPBY' ] ) ) ? ' GROUP BY ' . $args[ 'GROUPBY' ] : '';
 
-			switch ( $subquery ) {
+			switch ( $args[ 'SUBQUERY' ] ) {
 				case 'group':
-					$query = 'SELECT * FROM ( ' . $query . $order_by . ' ) AS ' . $table . $group_by . $limit;
+					$query = 'SELECT ' . $fields . ' FROM ( ' . $query . $order_by . ' ) AS ' . $table . $group_by . $limit;
 					break;
 				case 'order':
-					$query = 'SELECT * FROM ( ' . $query . $group_by . ' ) AS ' . $table . $order_by . $limit;
+					$query = 'SELECT ' . $fields . ' FROM ( ' . $query . $group_by . ' ) AS ' . $table . $order_by . $limit;
 					break;
 				default:
 					$query .= $group_by . $order_by . $limit;
@@ -374,39 +389,42 @@
 			// Check to see if we have a cached result for this query (only works for identical queries!)
 			$query_key = md5( $query );
 			$query_cache = static::$query_cache[ $query_key ];
-			$class = '\\Models\\' . str_replace( ' ', '_', ucwords( str_replace( '_', ' ', $table ) ) );
-			
-			if ( static::$cacheable && is_array( $query_cache ) && !empty( $query_cache ) ) {
-				// Cache hit!
-				foreach ( $query_cache as $cached_id ) {
-					$rows[] = new $class( $cached_id );
+				
+			if ( !$basic_objects ) {
+				$class = '\\Models\\' . str_replace( ' ', '_', ucwords( str_replace( '_', ' ', $table ) ) );
+				
+				if ( static::$cacheable && is_array( $query_cache ) && !empty( $query_cache ) ) {
+					// Cache hit!
+					foreach ( $query_cache as $cached_id ) {
+						$rows[] = new $class( $cached_id );
+					}
+				}
+				else {
+					// Cache miss, hit the DB
+					$result = EddyDB::q( $query );
+		
+					if ( $result->num_rows > 0 ) {
+						if ( static::$cacheable ) {
+						 	while( $row = $result->fetch_array() ) {
+						 		$rows[] = new $class( $row[ 'id' ] );
+								
+								// Cache the query itself, so we get the ID from the cache!
+								static::$query_cache[ $query_key ][] = $row[ 'id' ];
+						 	}
+						}
+						else {
+						 	while ( $row = $result->fetch_object( $class ) ) {
+								$rows[] = $row;
+							}
+						}
+					}
 				}
 			}
 			else {
-				// Cache miss, hit the DB
-				$result = EddyDB::q( $query );
-	
-				if ( $result->num_rows > 0 ) {
-					if ( static::$cacheable ) {
-					 	while( $row = $result->fetch_array() ) {
-					 		$rows[] = new $class( $row[ 'id' ] );
-							
-							// Cache the query itself, so we get the ID from the cache!
-							static::$query_cache[ $query_key ][] = $row[ 'id' ];
-					 	}
-					}
-					else {
-					 	while ( $row = $result->fetch_object( $class ) ) {
-							$rows[] = $row;
-						}
-					}
-					
-					//while ( $row = $result->fetch_object( $class ) ) {
-					//	$rows[] = $row;
-					//}
-				}
+				// TODO: do result caching here too?
+				$rows = EddyDB::q_into_array( $query );
 			}
-
+			
 			return $rows;
 		}
 

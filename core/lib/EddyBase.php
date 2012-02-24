@@ -34,6 +34,7 @@
 			}
 		}
 		
+		/*
 		public static function __callStatic( $name, $arguments ) {
 			$class = get_called_class();
 			
@@ -44,6 +45,7 @@
 				throw new Exception( "You tried to call a static method that doesn't exist" );
 			}
 		}
+		*/
 
 		public static function __set_state( $array ) {
 			$class = get_called_class();
