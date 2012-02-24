@@ -97,10 +97,16 @@
 		 */
 		private static function fix_url( $url ) {
 			$request[ 'original' ] = str_replace( '^' . str_replace( 'index.php', '', $_SERVER[ 'PHP_SELF' ] ), '', '^' . $url );
+			
+			// Need to remove suffixes here
+			$original_sans_qs = str_replace( '?' . $_SERVER[ 'QUERY_STRING' ], '', $request[ 'original' ] );
+			$ext = strstr( $original_sans_qs, '.' );
+			$original_sans_qs = str_replace( $ext, '', $original_sans_qs );
+			$original_avec_qs = $original_sans_qs . '?' . $_SERVER[ 'QUERY_STRING' ];
 
 			// TODO: Route through a single call. Waiting for Routes to fully support query strings, until then we have to do this twice (not ideal)
-			$request[ 'full' ] = Routes::route( $request[ 'original' ] );
-			$request[ 'actual' ] = Routes::route( str_replace( '?' . $_SERVER[ 'QUERY_STRING' ], '', $request[ 'original' ] ) );
+			$request[ 'full' ] = Routes::route( $original_avec_qs );
+			$request[ 'actual' ] = Routes::route( $original_sans_qs );
 
 			$request_rev = strrev( $request[ 'actual' ] );
 

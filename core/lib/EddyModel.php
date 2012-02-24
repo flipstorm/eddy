@@ -322,7 +322,7 @@
 
 						$comparison = '=';
 
-						if ( preg_match( '/^(>=|<=|<|>|!=)/', $value, $comparisons ) ) {
+						if ( preg_match( '/^(>=|<=|<|>|!=|LIKE )/', $value, $comparisons ) ) {
 							$comparison = $comparisons[1];
 							$value = preg_replace( '/^' . $comparison . '/', '', $value );
 						}
@@ -332,7 +332,7 @@
 							$in_set = true;
 						}
 						
-						if ( is_null( $value ) || strtoupper($value) === 'NULL' ) {
+						if ( is_null( $value ) || strtoupper( $value ) === 'NULL' ) {
 							$value = 'NULL';
 
 							$comparison = 'IS';
