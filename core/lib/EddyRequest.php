@@ -106,14 +106,17 @@
 
 			// TODO: Route through a single call. Waiting for Routes to fully support query strings, until then we have to do this twice (not ideal)
 			$request[ 'full' ] = Routes::route( $original_avec_qs );
-			$request[ 'actual' ] = Routes::route( $original_sans_qs );
+			$request[ 'actual' ] = Routes::route( $original_sans_qs ) . $ext;
 
 			$request_rev = strrev( $request[ 'actual' ] );
 
 			$request[ 'fixed' ] = $request[ 'actual' ];
 
 			if ( !$request[ 'actual' ] || $request_rev[0] == '/' ) {
-				$request[ 'fixed' ] .= 'index';
+				$request[ 'fixed' ] .= 'index' . $ext;
+			}
+			else {
+				$request[ 'fixed' ] .= $ext;
 			}
 
 			return $request;
