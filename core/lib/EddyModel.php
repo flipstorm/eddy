@@ -297,7 +297,7 @@
 				$query = 'SELECT id FROM `' . $table . '`';
 			}
 			else {
-				$query = 'SELECT ' . $fields . ', 1 as isDataBound FROM `' . $table . '`';
+				$query = 'SELECT ' . $fields . ( $fields ? '' : ', 1 as isDataBound' ) . ' FROM `' . $table . '`';
 			}
 
 			// Build WHERE clause
