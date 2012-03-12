@@ -102,7 +102,7 @@
 			$original_sans_qs = str_replace( '?' . $_SERVER[ 'QUERY_STRING' ], '', $request[ 'original' ] );
 			$ext = strstr( $original_sans_qs, '.' );
 			$original_sans_qs = str_replace( $ext, '', $original_sans_qs );
-			$original_avec_qs = $original_sans_qs . '?' . $_SERVER[ 'QUERY_STRING' ];
+			$original_avec_qs = $original_sans_qs . ( $_SERVER[ 'QUERY_STRING' ] ? '?' . $_SERVER[ 'QUERY_STRING' ] : '' );
 
 			// TODO: Route through a single call. Waiting for Routes to fully support query strings, until then we have to do this twice (not ideal)
 			$request[ 'full' ] = Routes::route( $original_avec_qs );
@@ -113,10 +113,10 @@
 			$request[ 'fixed' ] = $request[ 'actual' ];
 
 			if ( !$request[ 'actual' ] || $request_rev[0] == '/' ) {
-				$request[ 'fixed' ] .= 'index' . $ext;
+				$request[ 'fixed' ] .= 'index';// . $ext;
 			}
 			else {
-				$request[ 'fixed' ] .= $ext;
+				//$request[ 'fixed' ] .= $ext;
 			}
 
 			return $request;
