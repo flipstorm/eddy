@@ -57,4 +57,10 @@
 			
 			return $obj;
 		}
+		
+		protected static function getConstants() {
+			$refl = new \ReflectionClass( get_called_class() );
+			
+			return $refl->getConstants();
+		}
 	}
