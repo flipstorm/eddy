@@ -125,7 +125,7 @@
 					}
 
 					if ( !$ignore ) {
-						$insertFields[] = $fieldname;
+						$insertFields[] = '`' . $fieldname . '`';
 						$insertValues[] = $value;
 						$updateValues[] = $fieldname . ' = ' . $value;
 					}
