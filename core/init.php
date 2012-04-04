@@ -131,7 +131,7 @@
 					$classPI = pathinfo( $classFile );
 					$classPath = strtolower( $classPI[ 'dirname' ] );
 
-					include_once( 'lib/' . $classPath . '/' . $classPI[ 'filename' ] . '.php' );
+					@include_once( 'lib/' . $classPath . '/' . $classPI[ 'filename' ] . '.php' );
 				}
 
 				// These are non-crucial classes that are used in the core, but not necessary
