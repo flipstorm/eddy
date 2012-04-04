@@ -293,7 +293,7 @@
 				$fields = '*';
 			}
 			
-			if ( static::$cacheable ) {
+			if ( static::$cacheable && !$basic_objects ) {
 				$query = 'SELECT id FROM `' . $table . '`';
 			}
 			else {
