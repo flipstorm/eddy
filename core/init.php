@@ -25,8 +25,11 @@
 			session_start();
 
 			require_once 'functions.php';
-
-			//call_user_func( 'application_start' );
+			
+			// All of our setup is ready, config is loaded, session ready and core functions parsed
+			if ( function_exists( 'application_start' ) ) {
+				call_user_func( 'application_start' );
+			}
 
 			FB::setEnabled( DEBUG );
 			Routes::add( self::$routes );
