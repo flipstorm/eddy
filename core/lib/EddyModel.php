@@ -247,6 +247,12 @@
 		public static function get( $args = array() ) {
 			return self::find( get_called_class(), $args );
 		}
+		
+		public static function get_one( $args = array() ) {
+			$results = self::find( get_called_class(), $args );
+			
+			return $results[0];
+		}
 
 
 
