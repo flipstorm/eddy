@@ -5,7 +5,6 @@
 		private $pass = MYSQL_PASSWORD;
 		private $port = MYSQL_PORT;
 		private $socket = MYSQL_SOCKET;
-		private $table_prefix = MYSQL_TBLPREF;
 		private $user = MYSQL_USER;
 
 		private static $instance;
@@ -18,7 +17,7 @@
 
 		public function __construct( $host = null, $user = null, $pass = null, $db = null, $port = null, $socket = null ) {
 			foreach ( func_get_args() as $arg => $value ) {
-				if ( $value != null ) {
+				if ( !is_null( $value ) ) {
 					$this->$arg = $value;
 				}
 			}
