@@ -9,6 +9,9 @@
 		public static $routes;
 		public static $request;
 		public static $controller;
+		
+		// Convenience for global data storage
+		public static $data;
 
 		public static function init( $app_path ) {
 			self::set_paths( $app_path );
