@@ -247,6 +247,12 @@
 		public static function get( $args = array() ) {
 			return self::find( get_called_class(), $args );
 		}
+		
+		public static function get_one( $args = array() ) {
+			$results = self::find( get_called_class(), $args );
+			
+			return $results[0];
+		}
 
 
 
@@ -391,7 +397,7 @@
 			$query_cache = static::$query_cache[ $query_key ];
 				
 			if ( !$basic_objects ) {
-				$class = '\\Models\\' . str_replace( ' ', '_', ucwords( str_replace( '_', ' ', $table ) ) );
+				$class = '\\Models\\' . str_replace( ' ', '_', ucwords( str_replace( '_', ' ', str_replace( MYSQL_TBLPREF, '', $table ) ) ) );
 				
 				if ( static::$cacheable && is_array( $query_cache ) && !empty( $query_cache ) ) {
 					// Cache hit!
@@ -439,16 +445,31 @@
 			$db = EddyDB::getInstance();
 			$table = self::getTableName( get_called_class() );
 
-			$result = $db->query( 'UPDATE ' . $table . ' SET ' . $set . ' WHERE id IN (' . $db->esc_str( $range ) . ')' );
+			$result = $db->query( 'UPDATE ' . $table . ' SET ' . $set . ' WHERE `id` IN (' . $db->esc_str( $range ) . ')' );
+
+			return $db->affected_rows;
+		}
+
+		protected static function deleteRange( $range, $realDelete = false ) {
+			$db = EddyDB::getInstance();
+			$table = self::getTableName( get_called_class() );
+
+			if ( $realDelete ) {
+				$result = $db->query( 'DELETE FROM `' . $table . '` WHERE `id` IN (' . $range . ')' );
+			}
+			else {
+				//$result = self::updateRange( $range, '`deleted` = 1');
+				$result = $db->query( 'UPDATE `' . $table . '` SET `deleted` = 1 WHERE `id` IN (' . $range . ')' );
+			}
 
 			return $db->affected_rows;
 		}
 
 		final protected static function getTableName( $table ) {
-			$table = strtolower( str_ireplace( array( '^\\', '^Models\\', '\\', '^' ), array( '^', '', '_', '' ), '^' . $table ) );
+			$table = strtolower( MYSQL_TBLPREF . str_ireplace( array( '^\\', '^Models\\', '\\', '^' ), array( '^', '', '_', '' ), '^' . $table ) );
 
 			if ( static::$db_table ) {
-				$table = static::$db_table;
+				$table = MYSQL_TBLPREF . static::$db_table;
 			}
 			else {
 				$table = strtolower( \Helpers\Inflector::pluralize( $table ) );
