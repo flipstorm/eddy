@@ -3,7 +3,7 @@
 		public static function xml( $data ) {
 			header( 'Content-Type: text/xml; charset=UTF-8' );
 
-			if ( !is_array( $data[ 'xml' ] ) ) {
+			if ( empty( $data[ 'xml' ] ) ) {
 				header( 'HTTP/1.1 404 Not Found' );
 				exit;
 			}
@@ -14,7 +14,7 @@
 		public static function json( $data ) {
 			header( 'Content-Type: application/json; charset=UTF-8' );
 
-			if ( !is_array( $data[ 'json' ] ) ) {
+			if ( empty( $data[ 'json' ] ) ) {
 				header( 'HTTP/1.1 404 Not Found' );
 				exit;
 			}
