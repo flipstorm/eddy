@@ -6,6 +6,7 @@
 		protected $isDataBound = false;
 		protected $table;
 		protected $original;
+		protected $onDuplicateUpdate;
 
 		// Per-request caching. Enable in subclasses and override the $cache property for safer encapsulation
 		protected static $cacheable = false;
@@ -74,6 +75,7 @@
 		public function save( $asNew = false, $force = false, $with_ignore = false ) {
 			$db = EddyDB::getInstance();
 
+			// !$this->isDataBound
 			if ( !isset( $this->id ) ) {
 				$asNew = true;
 			}
@@ -137,9 +139,13 @@
 			}
 
 			if ( !$this->isDataBound || $asNew ) {
+				if ( $this->onDuplicateUpdate ) {
+					$append = ' ON DUPLICATE KEY UPDATE ' . $this->onDuplicateUpdate;
+				}
+				
 				$result = $db->query(
 					'INSERT' . $ignore . ' INTO `' . $this->table . '` ( ' . implode( ',', $insertFields ) . ' )
-					VALUES ( ' . implode( ',', $insertValues ) . ' )'
+					VALUES ( ' . implode( ',', $insertValues ) . ' )' . $append
 				);
 
 				$this->id = EddyDB::$insertId;
