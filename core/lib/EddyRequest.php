@@ -9,6 +9,7 @@
 		public $full;
 		public $method;
 		public $original;
+		public $original_noqs;
 		public $params;
 		public $path;
 		
@@ -23,6 +24,7 @@
 			$path = pathinfo( $uri[ 'fixed' ] );
 			
 			$this->original = $uri[ 'original' ];
+			$this->original_noqs = $uri[ 'original_noqs' ];
 			$this->actual = $uri[ 'actual' ];
 			$this->full = $uri[ 'full' ];
 			$this->fixed = ( $path[ 'dirname' ] != '.' && $path[ 'dirname' ] ? $path[ 'dirname' ] . '/' : '' ) . ( $path[ 'filename' ] ? $path[ 'filename' ] : 'index' );
@@ -100,6 +102,9 @@
 			
 			// Need to remove suffixes here
 			$original_sans_qs = str_replace( '?' . $_SERVER[ 'QUERY_STRING' ], '', $request[ 'original' ] );
+			
+			$request[ 'original_noqs' ] = $original_sans_qs;
+			
 			$ext = strstr( $original_sans_qs, '.' );
 			$original_sans_qs = str_replace( $ext, '', $original_sans_qs );
 			$original_avec_qs = $original_sans_qs . ( $_SERVER[ 'QUERY_STRING' ] ? '?' . $_SERVER[ 'QUERY_STRING' ] : '' );
