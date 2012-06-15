@@ -93,25 +93,33 @@
 			return $result;
 		}
 
+		// Generalised basic model, returns an array of objects from a simple query string
+		// Sometimes it's just easier doing it that way!
 		public static function q_into_array( $query, $class = null ) {
 			$result = self::q( $query );
 
 			$return = array();
-
-			if ( $class ) {
-				while ( $row = $result->fetch_object( $class ) ) {
-					$return[] = $row;
+			
+			if ( $result ) {
+				if ( $class ) {
+					while ( $row = $result->fetch_object( $class ) ) {
+						$return[] = $row;
+					}
+				}
+				else {
+					while ( $row = $result->fetch_object() ) {
+						$return[] = $row;
+					}
 				}
 			}
 			else {
-				while ( $row = $result->fetch_object() ) {
-					$return[] = $row;
-				}
+				// Chances are the query failed self::q ought to give details of the error (in Firebug at least for now)
 			}
 
 			return $return;
 		}
 
+		// Get a single value from a query. Returns the first field's value in the query
 		public static function get_value( $query ) {
 			$result = self::q( $query );
 			$row = $result->fetch_row();
