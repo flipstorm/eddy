@@ -491,6 +491,7 @@
 			$this->id = null;
 			$this->_id = null;
 			$this->isDataBound = false;
+			$this->original = null;
 		}
 
 		/**
