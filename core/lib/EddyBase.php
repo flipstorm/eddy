@@ -13,6 +13,8 @@
 		}
 		
 		public function __isset( $name ) {
+			// This has problems when private/protected variables are named the same as
+			// the variables implied by our special _get_ methods
 			$value = $this->$name;
 			
 			return isset( $value );
