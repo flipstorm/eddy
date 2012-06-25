@@ -28,9 +28,11 @@
 			    if ( mysqli_connect_errno() ) {
 			    	throw new Exception( 'Connection to Database failed!' );
 			    }
-
+				
+				$this->set_charset( 'utf8' );
 				self::$instance = $this;
 			}
+			
 		}
 
 		public static function getInstance() {
@@ -131,5 +133,11 @@
 			$instance = self::getInstance();
 
 			return $instance->db;
+		}
+		
+		public static function getLastError() {
+			$db = self::getInstance();
+			
+			return $db->error;
 		}
 	}
