@@ -40,6 +40,8 @@
 		 * Make a string URL friendly
 		 */
 		public static function urlize( $str ) {
+			// Transliterate UTF-8 characters to ASCII equivalents
+			$str = iconv( 'UTF-8', 'ASCII//TRANSLIT', $str );
 			return trim( preg_replace( array( '/\'/', '/[^a-z0-9-]/i', '/-{2,}/' ), array( '', '-', '-' ), html_entity_decode( $str, ENT_QUOTES ) ), '-' );
 		}
 		
