@@ -138,6 +138,6 @@
 		public static function getLastError() {
 			$db = self::getInstance();
 			
-			return $db->error;
+			return array( 'message' => $db->error, 'code' => $db->errno );
 		}
 	}
