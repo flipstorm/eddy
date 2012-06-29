@@ -255,7 +255,7 @@
 		}
 		
 		public static function get_one( $args = array() ) {
-			$results = self::find( get_called_class(), $args );
+			$results = self::find( get_called_class(), $args + array( 'limit' => 1 ) );
 			
 			return $results[0];
 		}
