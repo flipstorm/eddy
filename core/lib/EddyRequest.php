@@ -13,6 +13,9 @@
 		public $params;
 		public $path;
 		
+		// These need to match the methods available in your Response class
+		public static $valid_extensions = array( 'json', 'xml' );
+		
 		public function __construct( $uri = null ) {
 			if ( $uri ) {
 				$uri = self::fix_url( $uri );
@@ -27,22 +30,38 @@
 			$this->original_noqs = $uri[ 'original_noqs' ];
 			$this->actual = $uri[ 'actual' ];
 			$this->full = $uri[ 'full' ];
-			$this->fixed = ( $path[ 'dirname' ] != '.' && $path[ 'dirname' ] ? $path[ 'dirname' ] . '/' : '' ) . ( $path[ 'filename' ] ? $path[ 'filename' ] : 'index' );
+			
+			$this->fixed = ( $path[ 'dirname' ] != '.' && $path[ 'dirname' ] ? $path[ 'dirname' ] . '/' : '' ) .
+				( $path[ 'filename' ] ? $path[ 'filename' ] : 'index' ) .
+				( in_array( $path[ 'extension' ], self::$valid_extensions ) ? '' : ( $path[ 'extension' ] ? '.' . $path[ 'extension' ] : '' ) );
+			
 
 			// Take the URL, and do the usual Controller calcs
 			$this->method = self::rm_cleaner( $path[ 'filename' ] );
-			$this->format = strtolower( $path[ 'extension' ] );
-			$extensions[] = strtolower( $path[ 'extension' ] );
+			
+			$extensions = array();
+			$poss_extension = strtolower( $path[ 'extension' ] );
+			
+			if ( in_array( $poss_extension, self::$valid_extensions ) ) {
+				$extensions[] = $poss_extension;
+				$this->format = $poss_extension;
+			}
 
 			// In case pathinfo() extension hasn't captured a multiple extension
 			while ( strpos( $this->method, '.' ) !== false ) {
 				$rm = pathinfo( $this->method );
-				$extensions[] = strtolower( $rm[ 'extension' ] );
+				$poss_extension = strtolower( $rm[ 'extension' ] );
+				
+				if ( in_array( $poss_extension, self::$valid_extensions ) ) {
+					$extensions[] = $poss_extension;
+					$this->format = $poss_extension;
+				}
+				
 				$this->method = self::rm_cleaner( $rm[ 'filename' ] );
-				$this->format = strtolower( $rm[ 'extension' ] );
 			}
 
 			$this->extensions = array_reverse( $extensions );
+			
 			$this->path = trim( $path[ 'dirname' ], '.' );
 
 			if ( !$this->path ) {
@@ -106,7 +125,15 @@
 			$request[ 'original_noqs' ] = $original_sans_qs;
 			
 			$ext = strstr( $original_sans_qs, '.' );
-			$original_sans_qs = str_replace( $ext, '', $original_sans_qs );
+			
+			if ( in_array( trim( $ext, '.' ), self::$valid_extensions ) ) {
+				$original_sans_qs = str_replace( $ext, '', $original_sans_qs );
+			}
+			else {
+				$ext = '';
+			}
+
+
 			$original_avec_qs = $original_sans_qs . ( $_SERVER[ 'QUERY_STRING' ] ? '?' . $_SERVER[ 'QUERY_STRING' ] : '' );
 
 			// TODO: Route through a single call. Waiting for Routes to fully support query strings, until then we have to do this twice (not ideal)
