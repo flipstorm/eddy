@@ -1,6 +1,7 @@
 <?php
 	class EddyRequest extends EddyBase {
 		public $actual;
+		public $ajax;
 		public $controller_filename;
 		public $controller;
 		public $extensions;
@@ -8,6 +9,7 @@
 		public $format;
 		public $full;
 		public $method;
+		public $method_full;
 		public $original;
 		public $original_noqs;
 		public $params;
@@ -30,6 +32,8 @@
 			$this->original_noqs = $uri[ 'original_noqs' ];
 			$this->actual = $uri[ 'actual' ];
 			$this->full = $uri[ 'full' ];
+			
+			$this->ajax = $this->is_ajax();
 			
 			$this->fixed = ( $path[ 'dirname' ] != '.' && $path[ 'dirname' ] ? $path[ 'dirname' ] . '/' : '' ) .
 				( $path[ 'filename' ] ? $path[ 'filename' ] : 'index' ) .
