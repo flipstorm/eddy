@@ -26,13 +26,14 @@
 			}
 		}
 
-		// XXX: When are we ever using these?
+		// This allows us to call non-public methods from outside of an object - useful in controllers
+		// where you want a public method that's not meant to be an action
 		public function __call( $name, $arguments ) {
 			if ( method_exists( $this, '_call_' . $name ) ) {
 				return call_user_func_array( array( $this, '_call_' . $name ), $arguments );
 			}
 			else {
-				throw new Exception( "You tried to call an object method that doesn't exist" );
+				//throw new Exception( "You tried to call an object method that doesn't exist" );
 			}
 		}
 		
