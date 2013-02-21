@@ -306,7 +306,7 @@
 			}
 			
 			if ( static::$cacheable && !$basic_objects ) {
-				$query = 'SELECT id FROM `' . $table . '`';
+				$query = 'SELECT `id` FROM `' . $table . '`';
 			}
 			else {
 				$query = 'SELECT ' . $fields . ( $fields ? '' : ', 1 as isDataBound' ) . ' FROM `' . $table . '`';
@@ -339,8 +339,9 @@
 							$value = preg_replace( '/^' . $comparison . '/', '', $value );
 						}
 
-						if ( preg_match( '/^IN\((.+)\)/', $value, $set ) ) {
-							$value = $set[1];
+						if ( preg_match( '/^(!|NOT\s)?IN\((.+)\)/', $value, $set ) ) {
+							$comparison = $set[1] ? 'NOT ' : '';
+							$value = $set[2];
 							$in_set = true;
 						}
 						
@@ -364,7 +365,7 @@
 
 							$value = implode( ', ', $values );
 
-							$comparison = 'IN (';
+							$comparison .= 'IN (';
 							$value .= ' )';
 						}
 						elseif( is_bool( $value ) ) {
