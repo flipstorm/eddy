@@ -98,7 +98,7 @@
 
 				if ( strpos( '^' . $class, '^\\Controllers\\' ) !== false || strpos( '^' . $class, '^Controllers\\' ) !== false ) {
 					// This is a controller
-					$classFile = strtolower( str_ireplace( array( '^\\', '^Controllers\\', '\\', '_Controller$' ), array( '^', '', '/', '' ), '^' . $class . '$' ) ) . '.php';
+					$classFile = strtolower( str_ireplace( array( '^\\', '^Controllers\\', '\\', '_Controller$', '$' ), array( '^', '', '/', '', '' ), '^' . $class . '$' ) ) . '.php';
 					@include_once( 'controllers/' . $classFile );
 				}
 				elseif  ( strpos( '^' . $class, '^\\Models\\' ) !== false || strpos( '^' . $class, '^Models\\' ) !== false ) {
@@ -230,6 +230,8 @@
 					define( $const, $value );
 				}
 			}
+			
+			@include_once 'routes.php';
 		}
 
 		private static function get_cached() {
@@ -298,8 +300,28 @@
 
 				// If redirect happens in the constructor on an AJAX request, we don't want to run the action
 				if ( !$controller->cancel_request ) {
-					// TODO: check for methods like: [METHOD NAME]_action (so we can use unsafe method names like list and new, which are ordinarily reserved by PHP)
-					if ( method_exists( $controller, self::$request->method ) ) {
+					
+					$http_method = strtoupper( $_SERVER[ 'REQUEST_METHOD' ] );
+					
+					// Fetch method based on HTTP request method
+					if ( method_exists( $controller, $http_method . '_' . self::$request->method . '_action' ) ) {
+						// [get|post ...]_[self::$request->method]_action
+						self::$request->method_full = $http_method . '_' . self::$request->method . '_action';
+					}
+					else if ( method_exists( $controller, $http_method . '_' . self::$request->method ) ) {
+						// [get|post ...]_[self::$request->method]
+						self::$request->method_full = $http_method . '_' . self::$request->method;
+					}
+					else if ( method_exists( $controller, self::$request->method . '_action' ) ) {
+						// [self::$request->method]_action
+						self::$request->method_full = self::$request->method . '_action';
+					}
+					else if ( method_exists( $controller, self::$request->method ) ) {
+						// [self::$request->method]
+						self::$request->method_full = self::$request->method;
+					}
+
+					if ( self::$request->method_full ) {
 						// Build the parameters to pass to the method
 						$params = array();
 
@@ -313,7 +335,7 @@
 						}
 
 						// Call the method
-						call_user_func_array( array( $controller, self::$request->method ), $params );
+						call_user_func_array( array( $controller, self::$request->method_full ), $params );
 
 						// Start output buffering if we haven't already but need to
 						if ( ob_get_level() == 1 && $controller->cacheable ) {
@@ -332,6 +354,9 @@
 		}
 
 		private static function render_view() {
+			// Fire the controller prerender method
+			self::$controller->prerender();
+			
 			$format = self::$request->format;
 			$params = array( self::$controller->data, self::$controller->template, self::$controller->view );
 
