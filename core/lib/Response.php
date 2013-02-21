@@ -4,7 +4,7 @@
 			header( 'Content-Type: text/xml; charset=UTF-8' );
 
 			if ( empty( $data[ 'xml' ] ) ) {
-				header( 'HTTP/1.1 404 Not Found' );
+				header( 'HTTP/1.1 404 Not Found', false );
 				exit;
 			}
 
@@ -15,7 +15,7 @@
 			header( 'Content-Type: application/json; charset=UTF-8' );
 
 			if ( empty( $data[ 'json' ] ) ) {
-				header( 'HTTP/1.1 404 Not Found' );
+				header( 'HTTP/1.1 204 No Content', false );
 				exit;
 			}
 
