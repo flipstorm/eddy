@@ -265,62 +265,64 @@
 			// Work out what method to call and what params to pass to it
 			// Determine if the desired method exists, fallback on index and if that doesn't exist, give up
 
-			if ( method_exists( self::$request->controller, self::$request->method ) ) {
-				// XXX: All of this just to get the params off the end of the request! Is there a faster way?
-				//$params = timeme(function(){
-					//$strstr = explode( '/', self::$request->fixed );
-					$strstr = explode( '/', Eddy::$request->fixed );
-					$strstr = array_reverse( $strstr );
-					$strstr = implode( '/', $strstr );
-					// $strstr = stristr( $strstr, '/' . self::$request->method, true );
-					$strstr = stristr( $strstr, '/' . Eddy::$request->method, true );
-					$strstr = explode( '/', $strstr );
-					$strstr = array_reverse( $strstr );
-					$params = implode( '/', $strstr );
-				//	return $params;
-				//}, 'Get params');
-
-				if ( strpos( self::$request->path . '$', self::$request->method . '$' ) !== false ) {
-					self::$request->path = str_replace( self::$request->method . '$', '', self::$request->path . '$' );
-				}
-			}
-			elseif ( method_exists( self::$request->controller, 'index' ) && defined( 'NO_404' ) && NO_404 ) {
-				self::$request->method = 'index';
-				$params = trim( str_replace( '^' . self::$request->controller_filename . '/', '', '^' . self::$request->actual ), '/^' );
-			}
-
-			// Remove the format from the end of the paramaters
-			if ( !empty( $params ) ) {
-				self::$request->params = explode( '/', trim( str_replace( '.' . self::$request->format . '$', '', $params . '$' ), '$' ) );
-			}
-
-			// Instantiate the controller
+			// Attempt to instantiate the controller first, if we can't there's no point going further
 			if ( class_exists( self::$request->controller ) ) {
 				$controller = new self::$request->controller;
 
+				$http_method = strtoupper( $_SERVER[ 'REQUEST_METHOD' ] );
+				
+				// Fetch method based on HTTP request method
+				if ( method_exists( $controller, $http_method . '_' . self::$request->method . '_action' ) ) {
+					// [get|post ...]_[self::$request->method]_action
+					self::$request->method_full = $http_method . '_' . self::$request->method . '_action';
+				}
+				else if ( method_exists( $controller, $http_method . '_' . self::$request->method ) ) {
+					// [get|post ...]_[self::$request->method]
+					self::$request->method_full = $http_method . '_' . self::$request->method;
+				}
+				else if ( method_exists( $controller, self::$request->method . '_action' ) ) {
+					// [self::$request->method]_action
+					self::$request->method_full = self::$request->method . '_action';
+				}
+				else if ( method_exists( $controller, self::$request->method ) ) {
+					// [self::$request->method]
+					self::$request->method_full = self::$request->method;
+				}
+
+				// It's possible that method_full is not populated!
+
+				if ( self::$request->method_full ) {
+					// XXX: All of this just to get the params off the end of the request! Is there a faster way?
+					//$params = timeme(function(){
+						//$strstr = explode( '/', self::$request->fixed );
+						$strstr = explode( '/', Eddy::$request->fixed );
+						$strstr = array_reverse( $strstr );
+						$strstr = implode( '/', $strstr );
+						// $strstr = stristr( $strstr, '/' . self::$request->method, true );
+						$strstr = stristr( $strstr, '/' . Eddy::$request->method, true );
+						$strstr = explode( '/', $strstr );
+						$strstr = array_reverse( $strstr );
+						$params = implode( '/', $strstr );
+					//	return $params;
+					//}, 'Get params');
+
+					if ( strpos( self::$request->path . '$', self::$request->method . '$' ) !== false ) {
+						self::$request->path = str_replace( self::$request->method . '$', '', self::$request->path . '$' );
+					}
+				}
+				// XXX: This may be redundant now as it may never be used with current code
+				elseif ( method_exists( self::$request->controller, 'index' ) && defined( 'NO_404' ) && NO_404 ) {
+					self::$request->method = 'index';
+					$params = trim( str_replace( '^' . self::$request->controller_filename . '/', '', '^' . self::$request->actual ), '/^' );
+				}
+
+				// Remove the format from the end of the paramaters
+				if ( !empty( $params ) ) {
+					self::$request->params = explode( '/', trim( str_replace( '.' . self::$request->format . '$', '', $params . '$' ), '$' ) );
+				}
+
 				// If redirect happens in the constructor on an AJAX request, we don't want to run the action
 				if ( !$controller->cancel_request ) {
-					
-					$http_method = strtoupper( $_SERVER[ 'REQUEST_METHOD' ] );
-					
-					// Fetch method based on HTTP request method
-					if ( method_exists( $controller, $http_method . '_' . self::$request->method . '_action' ) ) {
-						// [get|post ...]_[self::$request->method]_action
-						self::$request->method_full = $http_method . '_' . self::$request->method . '_action';
-					}
-					else if ( method_exists( $controller, $http_method . '_' . self::$request->method ) ) {
-						// [get|post ...]_[self::$request->method]
-						self::$request->method_full = $http_method . '_' . self::$request->method;
-					}
-					else if ( method_exists( $controller, self::$request->method . '_action' ) ) {
-						// [self::$request->method]_action
-						self::$request->method_full = self::$request->method . '_action';
-					}
-					else if ( method_exists( $controller, self::$request->method ) ) {
-						// [self::$request->method]
-						self::$request->method_full = self::$request->method;
-					}
-
 					if ( self::$request->method_full ) {
 						// Build the parameters to pass to the method
 						$params = array();
