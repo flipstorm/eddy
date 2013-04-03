@@ -349,10 +349,11 @@
 						if ( is_null( $value ) || strtoupper( $value ) === 'NULL' ) {
 							$value = 'NULL';
 
-							$comparison = 'IS';
-
 							if ( $comparison == '!=' ) {
-								$comparison .= ' NOT';
+								$comparison = 'IS NOT';
+							}
+							else {
+								$comparison = 'IS';
 							}
 						}
 						elseif ( is_string( $value ) && !$in_set ) {
