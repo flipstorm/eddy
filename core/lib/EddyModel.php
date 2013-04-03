@@ -13,7 +13,7 @@
 		protected static $cache = array();
 		protected static $query_cache;
 		protected static $db_table;
-		
+
 		private $additional_save_fields = array();
 
 
@@ -25,7 +25,7 @@
 		 */
 		public function __construct( $id = null ) {
 			$this->table = self::getTableName( get_class( $this ) );
-			
+
 			if ( $this->id ) {
 				// $this->id was set before we got here (i.e. by MySQLi_Result->fetch_object() call)
 				$this->isDataBound = true;
@@ -41,7 +41,7 @@
 						foreach ( get_object_vars( $this ) as $key => $value ) {
 							$this->$key = $cachedObj->$key;
 						}
-						
+
 						unset( $cachedObj );
 					}
 					else {
@@ -88,13 +88,13 @@
 				//if ( $this->$field ) {
 				//	$value = $this->$field;
 				//}
-				
+
 				$this_public_vars[ $field ] = $value;
 			}
 
 			foreach ( $this_public_vars as $fieldname => $value ) {
 				$ignore = false;
-				
+
 				if ( ( $force && !is_null( $value ) ) || ( $this->original[ $fieldname ] !== $value && $this->original[ $fieldname ] != $value ) || ( $asNew && !is_null( $value ) ) ) {
 					if ( $this->original[ $fieldname ] !== $value && is_null( $value ) ) {
 						$value = 'NULL';
@@ -105,7 +105,7 @@
 							// Convert to simplest true or false (works best with MySQL TINYINT(1) UNSIGNED NOT NULL)
 							$value = ( $value ) ? 1 : 0;
 						}
-						
+
 						// Escape all other values and put them in quotation marks
 						elseif ( is_string( $value ) || is_numeric( $value ) ) {
 							$value = '"' . $db->escape_string( $value ) . '"';
@@ -114,7 +114,7 @@
 							// Try to extract a value from an object
 							$value = '"' . $db->escape_string( $value->__toString() ) . '"';
 						}
-						
+
 						// Ignore unusable values
 						//elseif ( is_array( $value ) ) {
 							// XXX: Throw an error?
@@ -142,7 +142,7 @@
 				if ( $this->onDuplicateUpdate ) {
 					$append = ' ON DUPLICATE KEY UPDATE ' . $this->onDuplicateUpdate;
 				}
-				
+
 				$result = $db->query(
 					'INSERT' . $ignore . ' INTO `' . $this->table . '` ( ' . implode( ',', $insertFields ) . ' )
 					VALUES ( ' . implode( ',', $insertValues ) . ' )' . $append
@@ -158,7 +158,7 @@
 					SET ' . implode( ', ', $updateValues ) . '
 					WHERE id = ' . $this->id
 				);
-					
+
 				// TODO: should we also update the original to reflect that this has been updated now?
 			}
 			else {
@@ -193,22 +193,23 @@
 				}
 				else {
 					FB::error( 'Could not pseudo-delete `' . $this->table . '` WHERE id = ' . $this->id . ', `deleted` field doesn\'t exist! Try calling $obj->delete(true)' );
+					return false;
 				}
 			}
 
 			return $db->affected_rows;
 		}
-		
+
 		// XXX: would this be better/more efficient as a hash comparison on a serialized version of the object?
 		public function has_changed() {
 			$this_public_vars = get_object_public_vars( $this );
-			
+
 			foreach ( $this_public_vars as $fieldname => $value ) {
 				// Try to grab a string if $value is an object when
 				if ( !is_object( $this->original[ $fieldname ] ) && is_object( $value ) && method_exists( $value, '__toString' ) ) {
 					$value = $value->__toString();
 				}
-				
+
 				if ( $this->original[ $fieldname ] !== $value && $this->original[ $fieldname ] != $value ) {
 					//\FB::info($value, 'has_changed');
 					//\FB::info(gettype($value), '$value');
@@ -216,7 +217,7 @@
 					return true;
 				}
 			}
-			
+
 			return false;
 		}
 
@@ -239,7 +240,7 @@
 		 */
 		public static function count( $where = null, $count_col = 'id' ) {
 			$table = self::getTableName( get_called_class() );
-			
+
 			$where = ( isset( $where ) ) ? ' WHERE ' . $where : '';
 
 			if ( $result = EddyDB::q( 'SELECT COUNT(' . $count_col . ') AS count FROM `' . $table . '`' . $where ) ) {
@@ -248,15 +249,15 @@
 
 			return $row[ 'count' ];
 		}
-		
+
 		// Super function to self::find that saves having to write a 'find' method in each model
 		public static function get( $args = array() ) {
 			return self::find( get_called_class(), $args );
 		}
-		
+
 		public static function get_one( $args = array() ) {
 			$results = self::find( get_called_class(), $args + array( 'limit' => 1 ) );
-			
+
 			return $results[0];
 		}
 
@@ -270,7 +271,7 @@
 		protected function _get_isDataBound() {
 			return $this->isDataBound;
 		}
-		
+
 		protected function _get_original() {
 			return $this->original;
 		}
@@ -294,17 +295,17 @@
 
 			// Uppercase all keys in the args
 			$args = array_change_key_case( $args, CASE_UPPER );
-			
+
 			// Only allow SELECT to be used when we're returning an array or the query
 			if ( $args[ 'SELECT' ] ) {
 				$fields = $args[ 'SELECT' ];
-				
+
 				$basic_objects = true;
 			}
 			else {
 				$fields = '*';
 			}
-			
+
 			if ( static::$cacheable && !$basic_objects ) {
 				$query = 'SELECT `id` FROM `' . $table . '`';
 			}
@@ -344,7 +345,7 @@
 							$value = $set[2];
 							$in_set = true;
 						}
-						
+
 						if ( is_null( $value ) || strtoupper( $value ) === 'NULL' ) {
 							$value = 'NULL';
 
@@ -398,14 +399,14 @@
 				default:
 					$query .= $group_by . $order_by . $limit;
 			}
-			
+
 			// Check to see if we have a cached result for this query (only works for identical queries!)
 			$query_key = md5( $query );
 			$query_cache = static::$query_cache[ $query_key ];
-				
+
 			if ( !$basic_objects ) {
 				$class = '\\Models\\' . str_replace( ' ', '_', ucwords( str_replace( '_', ' ', str_replace( MYSQL_TBLPREF, '', $table ) ) ) );
-				
+
 				if ( static::$cacheable && is_array( $query_cache ) && !empty( $query_cache ) ) {
 					// Cache hit!
 					foreach ( $query_cache as $cached_id ) {
@@ -415,12 +416,12 @@
 				else {
 					// Cache miss, hit the DB
 					$result = EddyDB::q( $query );
-		
+
 					if ( $result->num_rows > 0 ) {
 						if ( static::$cacheable ) {
 						 	while( $row = $result->fetch_array() ) {
 						 		$rows[] = new $class( $row[ 'id' ] );
-								
+
 								// Cache the query itself, so we get the ID from the cache!
 								static::$query_cache[ $query_key ][] = $row[ 'id' ];
 						 	}
@@ -437,7 +438,7 @@
 				// TODO: do result caching here too?
 				$rows = EddyDB::q_into_array( $query );
 			}
-			
+
 			return $rows;
 		}
 
@@ -484,9 +485,9 @@
 
 			return $table;
 		}
-		
-		
-		
+
+
+
 		/*** PRIVATE ***/
 		private function new_row() {
 			$this->id = null;
