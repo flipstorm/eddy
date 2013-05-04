@@ -310,10 +310,10 @@
 						self::$request->path = str_replace( self::$request->method . '$', '', self::$request->path . '$' );
 					}
 				}
-				// XXX: This may be redundant now as it may never be used with current code
 				elseif ( method_exists( self::$request->controller, 'index' ) && defined( 'NO_404' ) && NO_404 ) {
 					self::$request->method = 'index';
-					$params = trim( str_replace( '^' . self::$request->controller_filename . '/', '', '^' . self::$request->actual ), '/^' );
+					self::$request->method_full = 'index';
+					$params = trim( str_replace( '^' . self::$request->controller_filename . '/', '', '^' . preg_replace( '/[^a-z0-9\/_]+/i', '_', self::$request->actual ) ), '/^' );
 				}
 
 				// Remove the format from the end of the paramaters
