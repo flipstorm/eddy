@@ -340,6 +340,12 @@
 							$value = preg_replace( '/^' . $comparison . '/', '', $value );
 						}
 
+            if ( preg_match( '/^BETWEEN (.+) AND (.+)/', $value ) ) {
+              $comparison = '';
+              $value = $value;
+              $between = true;
+            }
+
 						if ( preg_match( '/^(!|NOT\s)?IN\((.+)\)/', $value, $set ) ) {
 							$comparison = $set[1] ? 'NOT ' : '';
 							$value = $set[2];
@@ -356,7 +362,7 @@
 								$comparison = 'IS';
 							}
 						}
-						elseif ( is_string( $value ) && !$in_set ) {
+						elseif ( is_string( $value ) && !$in_set && !$between ) {
 							$value = '"' . EddyDB::esc_str( $value ) . '"';
 						}
 						elseif ( $in_set ) {
